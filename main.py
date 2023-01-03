@@ -123,8 +123,7 @@ class Camera:
         camera.update(player)
         for sprite in all_sprites:
             camera.apply(sprite)
-        camera.apply(point)
-        camera.apply(base_point)
+        camera.apply(rope)
 
 """Vector start
 Vector end
@@ -159,6 +158,8 @@ class Vector:
 
     def l_vector_to(self, vect, lenght=1):
         v = self.vector_to(vect)
+        if v.dist == 0:
+            return Vector(0, 0)
         return v * (lenght / v.dist)
 
     @property
@@ -166,55 +167,75 @@ class Vector:
         return (self.x ** 2 + self.y ** 2) ** 0.5
 
 
-class Standart_Point_Segment_of_Rope:
-    def __init__(self, x, y, base=None):
+class Segment:
+    def __init__(self, x, y):
         self.cords = Vector(x, y)
-        self.base = base
-        self.len = 50.0
+        # self.base = base
         """if type(base) is Player:
             self.vx = base.vx
             self.vy = base.vy
         else:"""
         self.v = Vector(0, 0)
+        self.len = 1
+
+    def link(self, prev, next):
+        self.prev = prev
+        self.next = next
 
     def update(self):
         self.v += Vector(0, GRAVITY)
         #cords =  self.cords + self.v
+        for link_p in (self.prev, self.next):
+            if link_p is None:
+                continue
+            vec = self.cords.vector_to(link_p.cords) # from end to start to balance
+            tail = (vec.dist - self.len) / 10
+            direction = self.cords.l_vector_to(link_p.cords)
+            dv = direction * tail ** 2
+            
+            self.v += dv
 
-        vec = self.cords.vector_to(self.start)
-        tail = (vec.dist - self.len) / 10
-        direction = self.cords.l_vector_to(self.start)
-        dv = direction * tail
-        
-        self.v += dv
- 
-        self.cords += self.v
         self.v *= 0.99
-    
-    @property
-    def start(self):
-        return self.base.cords
+ 
 
     def move(self, dx, dy):
         self.cords += Vector(dx, dy)
 
+        self.cords += self.v * 0.9
+
     def draw(self):
-        p1 = self.base.cords
+        p1 = self.prev.cords
         p2 = self.cords
-        pygame.draw.line(screen, (255, 255, 255), (p1.x,p1.y), (p2.x,p2.y), 5)
+        pygame.draw.line(screen, (255, 255, 255), (p1.x, p1.y), (p2.x, p2.y), 1)
 
 
-class Rope_Segment:
-    def __init__(self, *points):
-        self.dist = 50
-        for p in points:
-            pass
+class Rope:
+    def __init__(self, *segments):
+        # self.dist = 50
+        self.segments = [] 
+        for i in range(len(segments)):
+            s = segments[i]
+            if i == 0:
+                s.link(None, segments[1])
+                self.base = s
+            elif i == len(segments) - 1:
+                s.link(segments[-2], None)
+                self.end = s
+            else:
+                s.link(segments[i - 1], segments[i + 1])
+            self.segments.append(s)
 
     def update(self):
-        pass
+        for s in self.segments[1:]:
+            s.update()
+
+    def move(self, dx, dy):
+        for s in self.segments:
+            s.move(dx, dy)
 
     def draw(self):
-        pass
+        for s in self.segments[1:]:
+            s.draw()
 
 
 class Standart_Sprite(pygame.sprite.Sprite):
@@ -303,8 +324,18 @@ camera = Camera()
 clock = pygame.time.Clock()
 
 rope_start = 225, 295
-base_point = Standart_Point_Segment_of_Rope(rope_start[0], rope_start[1])
-point = Standart_Point_Segment_of_Rope(rope_start[0] + 30, rope_start[1] + 0, base=base_point)
+"""point0 = Segment(rope_start[0], rope_start[1])
+
+point1 = Segment(rope_start[0] + 30, rope_start[1] - 20)
+point2 = Segment(rope_start[0] + 40, rope_start[1] - 40)
+point3 = Segment(rope_start[0] + 70, rope_start[1] - 60)"""
+#point4 = Segment(rope_start[0] + 70, rope_start[1] - 60, base=point3)
+#point5 = Segment(rope_start[0] + 70, rope_start[1] - 60, base=point4) 
+points = []
+for i in range(10):
+    points.append(Segment(rope_start[0] - 10 * i, rope_start[1] - 10 * i))
+rope = Rope(*points)
+
 
 start_screen()
 
@@ -330,12 +361,12 @@ while running:
     screen.fill(pygame.Color('black'))
     player_group.update(left, right, up)
 
-    point.update()
+    rope.update()
     
     tiles_group.draw(screen)
     player_group.draw(screen)
 
-    point.draw()
+    rope.draw()
 
     pygame.display.flip()
 
