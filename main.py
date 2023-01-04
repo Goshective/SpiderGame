@@ -1,24 +1,22 @@
 import pygame
 import os
 import sys
+from our_player import Player
+from constants import * # type: ignore
+from groups import * # type: ignore
+from camera import Camera
+from stand_sprite import Standart_Sprite
 
 
 pygame.init()
 
-FPS = 60
-GRAVITY = 0.35
-JMP_POWER = 10
-MOVE_SPEED = 7
-size = WIDTH, HEIGHT = 500, 500
-ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
-
-tile_width = tile_height = 50
 screen = pygame.display.set_mode(size)
 
 
-all_sprites = pygame.sprite.Group()
-tiles_group = pygame.sprite.Group()
-player_group = pygame.sprite.Group()
+def normal_path(filename, folder=None):
+    if folder is not None:
+        return os.path.join(ROOT_PATH, folder, filename)
+    return os.path.join(ROOT_PATH, folder, filename)
 
 
 def terminate():
@@ -57,7 +55,7 @@ def start_screen():
 
 
 def load_level(filename):
-    filename = os.path.join(ROOT_PATH, 'data', filename)
+    filename = normal_path(filename, folder='data')
     if not os.path.isfile(filename):
         print(f"Файл с картой '{filename}' не найден")
         sys.exit()
@@ -74,7 +72,10 @@ def load_level(filename):
 
 
 def load_image(name, colorkey=None):
-    fullname = os.path.join(ROOT_PATH, 'data', name)
+    player_image = False
+    if name[:4] == "pauk" and name[4:-4].isnumeric():
+        player_image = True
+    fullname = normal_path(name, folder='data')
     # если файл не существует, то выходим
     if not os.path.isfile(fullname):
         print(f"Файл с изображением '{fullname}' не найден")
@@ -89,6 +90,9 @@ def load_image(name, colorkey=None):
     else:
         image = image.convert_alpha()
 
+    if player_image:
+        image = pygame.transform.smoothscale(image, (50, 50))
+
     return image
 
 
@@ -99,31 +103,12 @@ def generate_level(level):
             if level[y][x] == '#':
                 Tile('wall', x, y)
             elif level[y][x] == '@':
-                new_player = Player(x, y)
+                new_player = Player(x, y, player_image)
             """elif level[y][x] == "*":
                 base_rope = Rope_Segment(Standart_Point(x*tile_width, y*tile_height, base=Tile('Wall', x, y)), 
                                         Standart_Point(x*tile_width, (y+1)*tile_height))"""
     # вернем игрока, а также размер поля в клетках
     return new_player, x, y
-
-
-class Camera:
-    def __init__(self):
-        self.dx = 0
-        self.dy = 0
-        
-    def apply(self, obj):
-        obj.move(self.dx, self.dy)
-    
-    def update(self, target):
-        self.dx = -(target.rect.x + target.rect.w // 2 - WIDTH / 2)
-        self.dy = -(target.rect.y + target.rect.h // 2 - HEIGHT / 2)
-
-    def contact(self, player):
-        camera.update(player)
-        for sprite in all_sprites:
-            camera.apply(sprite)
-        camera.apply(rope)
 
 """Vector start
 Vector end
@@ -218,7 +203,7 @@ class Rope:
             if i == 0:
                 s.link(None, segments[1])
                 self.base = s
-            elif i == len(segments) - 1:
+            elif i == len(segments) - 1 :
                 s.link(segments[-2], None)
                 self.end = s
             else:
@@ -238,12 +223,6 @@ class Rope:
             s.draw()
 
 
-class Standart_Sprite(pygame.sprite.Sprite):
-    def move(self, dx, dy):
-        self.rect.x += dx
-        self.rect.y += dy
-
-
 class Tile(Standart_Sprite):
     def __init__(self, tile_type, pos_x, pos_y):
         super().__init__(tiles_group, all_sprites)
@@ -252,67 +231,13 @@ class Tile(Standart_Sprite):
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
         # return self
-
-
-class Player(Standart_Sprite):
-    def __init__(self, pos_x, pos_y):
-        super().__init__(player_group, all_sprites)
-        self.image = player_image
-        self.rect = self.image.get_rect().move(
-            tile_width * pos_x + 15, tile_height * pos_y + 5)
-        self.x = pos_x
-        self.y = pos_y
-        self.vx = 0
-        self.vy = 0
-        self.on_ground = False
-
-    def update(self, left, right, up):
-        if up:
-            if self.on_ground:
-                self.vy = -JMP_POWER
-        if left:
-            self.vx = -MOVE_SPEED
- 
-        if right:
-            self.vx = MOVE_SPEED
-         
-        if not(left or right):
-            self.vx = 0
-        if not self.on_ground:
-            self.vy +=  GRAVITY
-
-        self.on_ground = False
-        self.rect.y += self.vy
-        self.collide(0, self.vy)
-
-        self.rect.x += self.vx
-        self.collide(self.vx, 0)
-
-        camera.contact(self)
-
-    def collide(self, vx, vy):
-        for plat in pygame.sprite.spritecollide(self, tiles_group, False):
-            if vx > 0:
-                self.rect.right = plat.rect.left 
-
-            elif vx < 0:
-                self.rect.left = plat.rect.right
-
-            if vy > 0:
-                self.rect.bottom = plat.rect.top
-                self.on_ground = True
-                self.vy = 0
-
-            elif vy < 0:
-                self.rect.top = plat.rect.bottom
-                self.vy = 0
         
 
 tile_images = {
     'wall': load_image('box.png'),
     'empty': load_image('grass.png')
 }
-player_image = load_image('mar.png')
+player_image = load_image('pauk1.png')
 
 level_map = load_level("lim.txt")
 
@@ -331,11 +256,13 @@ point2 = Segment(rope_start[0] + 40, rope_start[1] - 40)
 point3 = Segment(rope_start[0] + 70, rope_start[1] - 60)"""
 #point4 = Segment(rope_start[0] + 70, rope_start[1] - 60, base=point3)
 #point5 = Segment(rope_start[0] + 70, rope_start[1] - 60, base=point4) 
-points = []
-for i in range(10):
-    points.append(Segment(rope_start[0] - 10 * i, rope_start[1] - 10 * i))
-rope = Rope(*points)
 
+ropes = []
+for j in range(5):
+    points = []
+    for i in range(10):
+        points.append(Segment(rope_start[0] - j * 2 * i, rope_start[1] - j * 2 * i))
+    ropes.append(Rope(*points))
 
 start_screen()
 
@@ -359,14 +286,16 @@ while running:
         #    print(event)
 
     screen.fill(pygame.Color('black'))
-    player_group.update(left, right, up)
+    player_group.update(left, right, up, camera, ropes)
 
-    rope.update()
+    for r in ropes:
+        r.update()
     
     tiles_group.draw(screen)
     player_group.draw(screen)
 
-    rope.draw()
+    for r in ropes:
+        r.draw()
 
     pygame.display.flip()
 
