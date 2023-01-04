@@ -5,7 +5,7 @@ import sys
 
 pygame.init()
 
-FPS = 50
+FPS = 60
 GRAVITY = 0.35
 JMP_POWER = 10
 MOVE_SPEED = 7
@@ -100,24 +100,11 @@ def generate_level(level):
                 Tile('wall', x, y)
             elif level[y][x] == '@':
                 new_player = Player(x, y)
+            """elif level[y][x] == "*":
+                base_rope = Rope_Segment(Standart_Point(x*tile_width, y*tile_height, base=Tile('Wall', x, y)), 
+                                        Standart_Point(x*tile_width, (y+1)*tile_height))"""
     # вернем игрока, а также размер поля в клетках
     return new_player, x, y
-
-
-class Standart_Point:
-    def __init__(self, x, y, next_p, base=None):
-        self.x = x
-        self.y = y
-
-        self.next = next_p
-        self.base = base
-
-
-class Rope:
-    def __init__(self, points):
-        self.dist = 1
-        for p in points:
-            pass
 
 
 class Camera:
@@ -126,8 +113,7 @@ class Camera:
         self.dy = 0
         
     def apply(self, obj):
-        obj.rect.x += self.dx
-        obj.rect.y += self.dy
+        obj.move(self.dx, self.dy)
     
     def update(self, target):
         self.dx = -(target.rect.x + target.rect.w // 2 - WIDTH / 2)
@@ -137,18 +123,138 @@ class Camera:
         camera.update(player)
         for sprite in all_sprites:
             camera.apply(sprite)
+        camera.apply(rope)
+
+"""Vector start
+Vector end
+req_dist = 10
+v = end.l_vector_to(start)
+dist = v.dist
+
+if dist > req_dist:
+    tail = (dist - req_dist) / 10
+    v = v * tail"""
 
 
-class Tile(pygame.sprite.Sprite):
+class Vector:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __add__(self, vect):
+        return Vector(self.x + vect.x, self.y + vect.y)
+
+    def __sub__(self, vect):
+        return Vector(self.x - vect.x, self.y - vect.y)
+
+    def __mul__(self, n):
+        return Vector(self.x * n, self.y * n)
+
+    def __neg__(self):
+        return Vector(-self.x, -self.y)
+
+    def vector_to(self, vect):  # from end1 to end2
+        return vect - self
+
+    def l_vector_to(self, vect, lenght=1):
+        v = self.vector_to(vect)
+        if v.dist == 0:
+            return Vector(0, 0)
+        return v * (lenght / v.dist)
+
+    @property
+    def dist(self):
+        return (self.x ** 2 + self.y ** 2) ** 0.5
+
+
+class Segment:
+    def __init__(self, x, y):
+        self.cords = Vector(x, y)
+        # self.base = base
+        """if type(base) is Player:
+            self.vx = base.vx
+            self.vy = base.vy
+        else:"""
+        self.v = Vector(0, 0)
+        self.len = 1
+
+    def link(self, prev, next):
+        self.prev = prev
+        self.next = next
+
+    def update(self):
+        self.v += Vector(0, GRAVITY)
+        #cords =  self.cords + self.v
+        for link_p in (self.prev, self.next):
+            if link_p is None:
+                continue
+            vec = self.cords.vector_to(link_p.cords) # from end to start to balance
+            tail = (vec.dist - self.len) / 10
+            direction = self.cords.l_vector_to(link_p.cords)
+            dv = direction * tail ** 2
+            
+            self.v += dv
+
+        self.v *= 0.99
+ 
+
+    def move(self, dx, dy):
+        self.cords += Vector(dx, dy)
+
+        self.cords += self.v * 0.9
+
+    def draw(self):
+        p1 = self.prev.cords
+        p2 = self.cords
+        pygame.draw.line(screen, (255, 255, 255), (p1.x, p1.y), (p2.x, p2.y), 1)
+
+
+class Rope:
+    def __init__(self, *segments):
+        # self.dist = 50
+        self.segments = [] 
+        for i in range(len(segments)):
+            s = segments[i]
+            if i == 0:
+                s.link(None, segments[1])
+                self.base = s
+            elif i == len(segments) - 1:
+                s.link(segments[-2], None)
+                self.end = s
+            else:
+                s.link(segments[i - 1], segments[i + 1])
+            self.segments.append(s)
+
+    def update(self):
+        for s in self.segments[1:]:
+            s.update()
+
+    def move(self, dx, dy):
+        for s in self.segments:
+            s.move(dx, dy)
+
+    def draw(self):
+        for s in self.segments[1:]:
+            s.draw()
+
+
+class Standart_Sprite(pygame.sprite.Sprite):
+    def move(self, dx, dy):
+        self.rect.x += dx
+        self.rect.y += dy
+
+
+class Tile(Standart_Sprite):
     def __init__(self, tile_type, pos_x, pos_y):
         super().__init__(tiles_group, all_sprites)
         self.tile_type = tile_type
         self.image = tile_images[tile_type]
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
+        # return self
 
 
-class Player(pygame.sprite.Sprite):
+class Player(Standart_Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(player_group, all_sprites)
         self.image = player_image
@@ -208,7 +314,7 @@ tile_images = {
 }
 player_image = load_image('mar.png')
 
-level_map = load_level("map.txt")
+level_map = load_level("lim.txt")
 
 player, level_x, level_y = generate_level(level_map)
 sizes = level_x + 1, level_y + 1
@@ -216,6 +322,21 @@ sizes = level_x + 1, level_y + 1
 camera = Camera()
 
 clock = pygame.time.Clock()
+
+rope_start = 225, 295
+"""point0 = Segment(rope_start[0], rope_start[1])
+
+point1 = Segment(rope_start[0] + 30, rope_start[1] - 20)
+point2 = Segment(rope_start[0] + 40, rope_start[1] - 40)
+point3 = Segment(rope_start[0] + 70, rope_start[1] - 60)"""
+#point4 = Segment(rope_start[0] + 70, rope_start[1] - 60, base=point3)
+#point5 = Segment(rope_start[0] + 70, rope_start[1] - 60, base=point4) 
+points = []
+for i in range(10):
+    points.append(Segment(rope_start[0] - 10 * i, rope_start[1] - 10 * i))
+rope = Rope(*points)
+
+
 start_screen()
 
 running = True
@@ -234,13 +355,18 @@ while running:
                 left = event.type == pygame.KEYDOWN
             elif event.key == pygame.K_d:
                 right = event.type == pygame.KEYDOWN
-        
+        #if event.type == pygame.MOUSEMOTION:
+        #    print(event)
 
     screen.fill(pygame.Color('black'))
     player_group.update(left, right, up)
+
+    rope.update()
     
     tiles_group.draw(screen)
     player_group.draw(screen)
+
+    rope.draw()
 
     pygame.display.flip()
 
