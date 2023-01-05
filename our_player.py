@@ -2,6 +2,7 @@ import pygame
 from stand_sprite import Standart_Sprite
 from constants import *
 from groups import *
+from animation import Animation
 
 
 class Player(Standart_Sprite):
@@ -17,6 +18,8 @@ class Player(Standart_Sprite):
         self.vy = 0
         self.on_ground = False
 
+        self.anim = Animation("player")
+
     def update(self, left, right, up, camera, ropes):
         if up:
             if self.on_ground:
@@ -27,7 +30,7 @@ class Player(Standart_Sprite):
         if right:
             self.vx = MOVE_SPEED
          
-        if not(left or right):
+        if not (left or right) or left and right:
             self.vx = 0
         if not self.on_ground:
             self.vy +=  GRAVITY
@@ -39,10 +42,15 @@ class Player(Standart_Sprite):
         self.rect.x += self.vx
         self.collide(self.vx, 0)
 
+        """next_image = self.anim.next(left, right, up, self.on_ground)
+        if next_image is not None:
+            self.image = next_image"""
+
         camera.contact(self, ropes)
 
     def collide(self, vx, vy):
-        for plat in pygame.sprite.spritecollide(self, tiles_group, False):
+        lst = pygame.sprite.spritecollide(self, tiles_group, False)
+        for plat in lst:
             if vx > 0:
                 self.rect.right = plat.rect.left 
 
@@ -57,3 +65,5 @@ class Player(Standart_Sprite):
             elif vy < 0:
                 self.rect.top = plat.rect.bottom
                 self.vy = 0
+        """if len(lst) == 0 and vx == 0:
+            self.on_ground = False"""
