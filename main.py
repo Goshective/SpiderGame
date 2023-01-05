@@ -228,7 +228,7 @@ while running:
         #if event.type == pygame.MOUSEMOTION:
         #    print(event)
 
-    screen.fill(pygame.Color('black'))
+    screen.fill((192, 192, 192))
     player_group.update(left, right, up, camera, ropes)
 
     for r in ropes:

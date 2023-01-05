@@ -11,7 +11,7 @@ class Player(Standart_Sprite):
         self.image = player_image
         
         self.rect = self.image.get_rect().move(
-            tile_width * pos_x + 30, tile_height * pos_y + 5)
+            tile_width * pos_x + 10, tile_height * pos_y + 50)
         self.x = pos_x
         self.y = pos_y
         self.vx = 0
@@ -21,6 +21,7 @@ class Player(Standart_Sprite):
         self.anim = Animation("player")
 
     def update(self, left, right, up, camera, ropes):
+        idle = False
         if up:
             if self.on_ground:
                 self.vy = -JMP_POWER
@@ -32,6 +33,7 @@ class Player(Standart_Sprite):
          
         if not (left or right) or left and right:
             self.vx = 0
+            idle = True
         if not self.on_ground:
             self.vy +=  GRAVITY
 
@@ -42,9 +44,8 @@ class Player(Standart_Sprite):
         self.rect.x += self.vx
         self.collide(self.vx, 0)
 
-        """next_image = self.anim.next(left, right, up, self.on_ground)
-        if next_image is not None:
-            self.image = next_image"""
+        next_image = self.anim.update(idle=idle)
+        self.image = next_image
 
         camera.contact(self, ropes)
 

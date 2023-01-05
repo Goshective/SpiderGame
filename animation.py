@@ -5,45 +5,27 @@ from loading_files import load_image
 class Animation:
     def __init__(self, obj_class):
 
-        self.delay = FPS // 2
+        self.delay = FPS // 4
         self.frame_counter = 0
-        self.prev_name = "stay"
+        #self.prev_name = "stay"
         if obj_class == "player":
             self.sides = {}
-            names = "left", "right", "stay", "jump", "jump_l", "jump_r" 
-            consts = ANIMATION_LEFT, ANIMATION_RIGHT, ANIMATION_STAY, ANIMATION_JUMP, ANIMATION_JUMP_LEFT, ANIMATION_JUMP_RIGHT
-            for i in range(len(consts)):
-                self.sides[names[i]] = [load_image(x) for x in consts[i]]
+            #names = "left", "right", "stay", "jump", "jump_l", "jump_r" 
+            #consts = ANIMATION_LEFT, ANIMATION_RIGHT, ANIMATION_STAY, ANIMATION_JUMP, ANIMATION_JUMP_LEFT, ANIMATION_JUMP_RIGHT
+            self.f1 = load_image("pauk1.png")
+            self.f2 = load_image("pauk2.png")
+            self.f3 = load_image("pauk3.png")
 
-    def next(self, left, right, jump, on_ground):
-        if self.frame_counter % self.delay != 0:
-            self.frame_counter += 1
-            return None
-        if left and right:
-            i = self.count_stage("stay")
-            return self.sides["stay"][i]
-        if left:
-            if jump and on_ground:
-                i = self.count_stage("jump_l")
-                return self.sides["jump_l"][i]
-            i = self.count_stage("left")
-            return self.sides["left"][i]
-        elif right:
-            if jump and on_ground:
-                i = self.count_stage("jump_r")
-                return self.sides["jump_r"][i]
-            i = self.count_stage("right")
-            return self.sides["right"][i]
-        elif jump and on_ground:
-            i = self.count_stage("jump")
-            return self.sides["jump"][i]
+    def update(self, idle=False):
+        if idle:
+            return self.f1
+        self.frame_counter = (self.frame_counter + 1) % self.delay
+        limit = self.delay // 3
+        if self.frame_counter < limit:
+            return self.f1
+        elif self.frame_counter < limit*2:
+            return self.f2
         else:
-            i = self.count_stage("stay")
-            return self.sides["stay"][i]
-
-    def count_stage(self, name2):
-        if self.prev_name != name2:
-            self.frame_counter = 0
-            self.prev = name2
-            return 0
-        return (self.frame_counter // (self.delay + 1)) % len(self.sides[name2])
+            if self.frame_counter == self.delay:
+                self.frame_counter = 0
+            return self.f3

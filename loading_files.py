@@ -47,5 +47,9 @@ def load_image(name, colorkey=None):
 
     if player_image:
         image = pygame.transform.smoothscale(image, (50, 50))
+        #image = pygame.transform.chop(image, pygame.Rect(0,0,5,5))
 
+        cropped = pygame.Surface((50, 40), pygame.SRCALPHA, 32)
+        cropped.blit(image, (0, 0), (0, 5, 50, 40))
+        image = cropped
     return image
