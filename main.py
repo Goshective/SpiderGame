@@ -7,6 +7,7 @@ from groups import * # type: ignore
 from camera import Camera
 from stand_sprite import Standart_Sprite
 from loading_files import load_image, load_level
+from map import generate_map
 
 
 pygame.init()
@@ -182,7 +183,9 @@ tile_images = {
 }
 player_image = load_image('pauk1.png')
 
-level_map = load_level("lim.txt")
+# level_map = load_level("lim.txt")
+level_map = generate_map(64, 64)
+print(level_map)
 
 player, level_x, level_y = generate_level(level_map)
 sizes = level_x + 1, level_y + 1
