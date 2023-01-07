@@ -58,8 +58,7 @@ def generate_level(level):
             elif level[y][x] == '@':
                 new_player = Player(x, y, player_image)
             """elif level[y][x] == "*":
-                base_rope = Rope_Segment(Standart_Point(x*tile_width, y*tile_height, base=Tile('Wall', x, y)), 
-                                        Standart_Point(x*tile_width, (y+1)*tile_height))"""
+                base_rope = Rope(__something__)"""
     # вернем игрока, а также размер поля в клетках
     return new_player, x, y
 
@@ -96,6 +95,7 @@ class Vector:
     @property
     def dist(self):
         return (self.x ** 2 + self.y ** 2) ** 0.5
+
 
 class PinnedSegment:
     def __init__(self, x, y, src=None):
@@ -167,10 +167,14 @@ class Segment:
                 dt = abs(r.top - p1.y)
                 db = abs(r.bottom - p1.y)
                 m = min(dl,dr,dt,db)
-                if   m == dl: p1.x = r.left - 1
-                elif m == dr: p1.x = r.right
-                elif m == dt: p1.y = r.top - 1
-                else:         p1.y = r.bottom
+                if   m == dl:
+                    p1.x = r.left - 1
+                elif m == dr:
+                    p1.x = r.right
+                elif m == dt:
+                    p1.y = r.top - 1
+                else:
+                    p1.y = r.bottom
                 break
 
             if not p1 and p2:
