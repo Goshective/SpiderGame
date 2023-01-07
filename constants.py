@@ -3,7 +3,7 @@ import os
 
 FPS = 60
 
-size = WIDTH, HEIGHT = 500, 500
+size = WIDTH, HEIGHT = 700, 700
 tile_width = tile_height = 50
 
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
