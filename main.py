@@ -81,7 +81,10 @@ class Vector:
     def __neg__(self):
         return Vector(-self.x, -self.y)
 
-    def vector_to(self, vect):  # from end1 to end2
+    def __repr__(self):
+        return "(" + str(self.x) + "," + str(self.y) + ")"
+
+    def vector_to(self, vect):  # from self to vect
         return vect - self
 
     def l_vector_to(self, vect, lenght=1):
@@ -94,67 +97,129 @@ class Vector:
     def dist(self):
         return (self.x ** 2 + self.y ** 2) ** 0.5
 
-
-class Segment:
-    def __init__(self, x, y):
+class PinnedSegment:
+    def __init__(self, x, y, src=None):
         self.cords = Vector(x, y)
-        # self.base = base
-        """if type(base) is Player:
-            self.vx = base.vx
-            self.vy = base.vy
-        else:"""
-        self.v = Vector(0, 0)
-        self.len = 1
+        self.src = src
+
+    def changelen(self, dl):
+        pass
 
     def link(self, prev, next):
         self.prev = prev
         self.next = next
-
+        
     def update(self):
-        self.v += Vector(0, GRAVITY)
-        #cords =  self.cords + self.v
+        if self.src is not None:
+            self.cords = Vector(self.src.rect.left+25, self.src.rect.top)
+        
+    def move(self, dx, dy):
+        self.cords += Vector(dx, dy)
+
+    def draw(self):
+        pygame.draw.circle(screen, (0, 255, 0), (int(self.cords.x), int(self.cords.y)), 2)
+         
+class Segment:
+    def __init__(self, x, y, l):
+        self.cords = Vector(x, y)
+        self.v = Vector(0, 0)
+        self.len = l
+        self.min_len = l / 5
+        self.max_len = l * 5
+        
+    def changelen(self, dl):
+        if self.len < 1 and dl < 0: return
+        if self.len > 10 and dl > 0: return
+        self.len += dl
+
+    def link(self, prev, next):
+        self.prev = prev
+        self.next = next
+        
+    def update(self):
+        self.v.y += GRAVITY / 5
         for link_p in (self.prev, self.next):
             if link_p is None:
                 continue
             vec = self.cords.vector_to(link_p.cords) # from end to start to balance
             tail = (vec.dist - self.len) / 10
             direction = self.cords.l_vector_to(link_p.cords)
-            dv = direction * tail ** 2
+            dv = direction * tail
             
             self.v += dv
 
         self.v *= 0.99
- 
+
+    def __collide(self):
+        next_pos = self.cords + self.v
+        for tile in tiles_group:
+            r = tile.rect
+            p1 = r.collidepoint(self.cords.x, self.cords.y)
+            p2 = r.collidepoint(next_pos.x, next_pos.y)
+            if not p1 and not p2:
+                continue
+
+            if p1 and p2: # both points inside rect, move to closest side
+                self.v = Vector(0,0)
+                p1 = self.cords
+                dl = abs(r.left - p1.x)
+                dr = abs(r.right - p1.x)
+                dt = abs(r.top - p1.y)
+                db = abs(r.bottom - p1.y)
+                m = min(dl,dr,dt,db)
+                if   m == dl: p1.x = r.left - 1
+                elif m == dr: p1.x = r.right
+                elif m == dt: p1.y = r.top - 1
+                else:         p1.y = r.bottom
+                break
+
+            if not p1 and p2:
+                p1 = self.cords
+                p2 = next_pos
+                if p1.x < r.left and p2.x >= r.left:
+                    self.v.x = 0
+                    p1.x = r.left - 1
+                elif p1.x >= r.right and p2.x < r.right:
+                    self.v.x = 0
+                    p1.x = r.right
+                elif p1.y < r.top and p2.y >= r.top:
+                    self.v.y = 0
+                    p1.y = r.top - 1
+                elif p1.y >= r.bottom and p2.y < r.bottom:
+                    self.v.y = 0
+                    p1.y = r.bottom
+                break
+            break
 
     def move(self, dx, dy):
         self.cords += Vector(dx, dy)
-
+        self.__collide()
         self.cords += self.v * 0.9
 
     def draw(self):
+        if self.prev is None: return
         p1 = self.prev.cords
         p2 = self.cords
         pygame.draw.line(screen, (255, 255, 255), (p1.x, p1.y), (p2.x, p2.y), 1)
+        pygame.draw.circle(screen, (255, 0, 0), (int(p2.x), int(p2.y)), 2)
 
-
+        
 class Rope:
     def __init__(self, *segments):
-        # self.dist = 50
         self.segments = [] 
         for i in range(len(segments)):
             s = segments[i]
-            if i == 0:
-                s.link(None, segments[1])
-                self.base = s
-            elif i == len(segments) - 1 :
-                s.link(segments[-2], None)
-                self.end = s
-            else:
-                s.link(segments[i - 1], segments[i + 1])
+            prev = segments[i - 1] if i > 0 else None
+            next = segments[i + 1] if i < len(segments) - 1 else None
+            s.link(prev, next)
             self.segments.append(s)
 
+    def changelen(self, dl):
+        for s in self.segments:
+            s.changelen(dl)
+ 
     def update(self):
-        for s in self.segments[1:]:
+        for s in self.segments:
             s.update()
 
     def move(self, dx, dy):
@@ -162,8 +227,26 @@ class Rope:
             s.move(dx, dy)
 
     def draw(self):
-        for s in self.segments[1:]:
+        for s in self.segments:
             s.draw()
+ 
+    @staticmethod
+    def create(p, player):
+        points = []
+        x,y = player.rect.left+25,player.rect.top
+        pts = 10
+        dx = (p[0] - x) / pts
+        dy = (p[1] - y) / pts
+        segments = []
+        for i in range(pts):
+            if i == pts - 1:
+                seg = PinnedSegment(x, y)
+            else: 
+                seg = Segment(x, y, 10)
+            segments.append(seg)
+            x += dx
+            y += dy
+        return Rope(*segments)
 
 
 class Tile(Standart_Sprite):
@@ -174,7 +257,7 @@ class Tile(Standart_Sprite):
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
         # return self
-        
+
 
 tile_images = {
     'wall': load_image('box.png'),
@@ -191,22 +274,7 @@ camera = Camera()
 
 clock = pygame.time.Clock()
 
-rope_start = 225, 295
-"""point0 = Segment(rope_start[0], rope_start[1])
-
-point1 = Segment(rope_start[0] + 30, rope_start[1] - 20)
-point2 = Segment(rope_start[0] + 40, rope_start[1] - 40)
-point3 = Segment(rope_start[0] + 70, rope_start[1] - 60)
-point4 = Segment(rope_start[0] + 70, rope_start[1] - 60, base=point3)
-point5 = Segment(rope_start[0] + 70, rope_start[1] - 60, base=point4) """
-
 ropes = []
-for j in range(5):
-    points = []
-    for i in range(10):
-        points.append(Segment(rope_start[0] - (j + 3) * 2.5 * i, rope_start[1] - (j - 3) * 2.5 * i))
-    ropes.append(Rope(*points))
-
 start_screen()
 
 running = True
@@ -219,17 +287,24 @@ while running:
         if event.type in (pygame.KEYDOWN, pygame.KEYUP):
             if event.key == pygame.K_w:
                 up = event.type == pygame.KEYDOWN
-            # elif event.key == pygame.K_s:
-            #     down = event.type == pygame.KEYDOWN
+            elif event.key == pygame.K_s:
+                down = event.type == pygame.KEYDOWN
             elif event.key == pygame.K_a:
                 left = event.type == pygame.KEYDOWN
             elif event.key == pygame.K_d:
                 right = event.type == pygame.KEYDOWN
-        #if event.type == pygame.MOUSEMOTION:
-        #    print(event)
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if len(ropes) > 0:
+                ropes = []
+                player.set_rope(None)
+            else:
+                p = pygame.mouse.get_pos()
+                rope = Rope.create(p, player)
+                ropes.append(rope)
+                player.set_rope(rope)
 
     screen.fill((192, 192, 192))
-    player_group.update(left, right, up, camera, ropes)
+    player_group.update(left, right, up, down, camera, ropes)
 
     for r in ropes:
         r.update()

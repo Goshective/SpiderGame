@@ -12,44 +12,69 @@ class Player(Standart_Sprite):
         
         self.rect = self.image.get_rect().move(
             tile_width * pos_x + 10, tile_height * pos_y + 50)
-        self.x = pos_x
-        self.y = pos_y
         self.vx = 0
         self.vy = 0
         self.on_ground = False
-
+        self.rope = None
         self.anim = Animation("player")
 
-    def update(self, left, right, up, camera, ropes):
+    def set_rope(self, rope):
+        self.rope = rope
+
+    def update(self, left, right, up, down, camera, ropes):
+        if self.rope is not None:
+            idle = self.__handle_flying(left, right, up, down)
+        else:
+            idle = self.__handle_running(left, right, up, down)
+
+        self.image = self.anim.update(idle)
+        camera.contact(self, ropes)
+
+    def __handle_flying(self, left, right, up, down):
+        idle = True
+        seg = self.rope.segments[0]
+        c = seg.cords
+        v = seg.v
+        self.rect.x = c.x - 25
+        self.rect.y = c.y
+        self.vx = v.x
+        self.vy = v.y
+        if left:
+            v.x -= MOVE_SPEED / 20
+        elif right:
+            v.x += MOVE_SPEED / 20
+        if up:
+            self.rope.changelen(-0.1)
+        elif down:
+            self.rope.changelen(0.1)
+        return idle
+        
+    def __handle_running(self, left, right, up, down):
         idle = False
         if up:
             if self.on_ground:
                 self.vy = -JMP_POWER
         if left:
             self.vx = -MOVE_SPEED
- 
+        
         if right:
             self.vx = MOVE_SPEED
          
-        if not (left or right) or left and right:
+        if left == right:
             self.vx = 0
             idle = True
         if not self.on_ground:
             self.vy +=  GRAVITY
-
+            
         self.on_ground = False
         self.rect.y += self.vy
-        self.collide(0, self.vy)
-
+        self.__collide(0, self.vy)
+        
         self.rect.x += self.vx
-        self.collide(self.vx, 0)
+        self.__collide(self.vx, 0)
+        return idle
 
-        next_image = self.anim.update(idle=idle)
-        self.image = next_image
-
-        camera.contact(self, ropes)
-
-    def collide(self, vx, vy):
+    def __collide(self, vx, vy):
         lst = pygame.sprite.spritecollide(self, tiles_group, False)
         for plat in lst:
             if vx > 0:
