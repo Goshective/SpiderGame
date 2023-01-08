@@ -1,5 +1,4 @@
 import pygame
-import os
 import sys
 from our_player import Player
 from constants import * # type: ignore
@@ -111,7 +110,7 @@ class PinnedSegment:
         
     def update(self):
         if self.src is not None:
-            self.cords = Vector(self.src.rect.left+25, self.src.rect.top)
+            self.cords = Vector(self.src.rect.left + player.rect.width // 2, self.src.rect.top)
         
     def move(self, dx, dy):
         self.cords += Vector(dx, dy)
@@ -125,11 +124,13 @@ class Segment:
         self.v = Vector(0, 0)
         self.len = l
         self.min_len = l / 5
-        self.max_len = l * 5
+        self.max_len = l * 10
         
     def changelen(self, dl):
-        if self.len < 1 and dl < 0: return
-        if self.len > 10 and dl > 0: return
+        if self.len < 1 and dl < 0:
+            return
+        if self.len > 10 and dl > 0:
+            return
         self.len += dl
 
     def link(self, prev, next):
@@ -201,7 +202,8 @@ class Segment:
         self.cords += self.v * 0.9
 
     def draw(self):
-        if self.prev is None: return
+        if self.prev is None:
+            return
         p1 = self.prev.cords
         p2 = self.cords
         pygame.draw.line(screen, (255, 255, 255), (p1.x, p1.y), (p2.x, p2.y), 1)
@@ -237,7 +239,7 @@ class Rope:
     @staticmethod
     def create(p, player):
         points = []
-        x,y = player.rect.left+25,player.rect.top
+        x, y = player.rect.left + player.rect.width // 2, player.rect.top
         pts = 10
         dx = (p[0] - x) / pts
         dy = (p[1] - y) / pts
@@ -246,7 +248,7 @@ class Rope:
             if i == pts - 1:
                 seg = PinnedSegment(x, y)
             else: 
-                seg = Segment(x, y, 10)
+                seg = Segment(x, y, 1)
             segments.append(seg)
             x += dx
             y += dy
