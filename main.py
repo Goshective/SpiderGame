@@ -82,6 +82,10 @@ class Vector:
     def __repr__(self):
         return "(" + str(self.x) + "," + str(self.y) + ")"
 
+    def set_null(self, x=None, y=None):
+        self.x = self.x if x is None else x
+        self.y = self.y if y is None else y
+
     def vector_to(self, vect):  # from self to vect
         return vect - self
 
@@ -150,6 +154,9 @@ class Segment:
             self.v += dv
 
         self.v *= 0.99
+
+    def get_cords(self):
+        return Vector(self.cords.x, self.cords.y)
 
     def __collide(self):
         next_pos = self.cords + self.v
