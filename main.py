@@ -1,5 +1,4 @@
 import pygame
-import os
 import sys
 from our_player import Player
 from constants import * # type: ignore
@@ -59,8 +58,7 @@ def generate_level(level):
             elif level[y][x] == '@':
                 new_player = Player(x, y, player_image)
             """elif level[y][x] == "*":
-                base_rope = Rope_Segment(Standart_Point(x*tile_width, y*tile_height, base=Tile('Wall', x, y)), 
-                                        Standart_Point(x*tile_width, (y+1)*tile_height))"""
+                base_rope = Rope(__something__)"""
     # вернем игрока, а также размер поля в клетках
     return new_player, x, y
 
@@ -85,6 +83,10 @@ class Vector:
     def __repr__(self):
         return "(" + str(self.x) + "," + str(self.y) + ")"
 
+    def set_null(self, x=None, y=None):
+        self.x = self.x if x is None else x
+        self.y = self.y if y is None else y
+
     def vector_to(self, vect):  # from self to vect
         return vect - self
 
@@ -97,6 +99,7 @@ class Vector:
     @property
     def dist(self):
         return (self.x ** 2 + self.y ** 2) ** 0.5
+
 
 class PinnedSegment:
     def __init__(self, x, y, src=None):
@@ -112,7 +115,7 @@ class PinnedSegment:
         
     def update(self):
         if self.src is not None:
-            self.cords = Vector(self.src.rect.left+25, self.src.rect.top)
+            self.cords = Vector(self.src.rect.left + player.rect.width // 2, self.src.rect.top)
         
     def move(self, dx, dy):
         self.cords += Vector(dx, dy)
@@ -126,11 +129,13 @@ class Segment:
         self.v = Vector(0, 0)
         self.len = l
         self.min_len = l / 5
-        self.max_len = l * 5
+        self.max_len = l * 10
         
     def changelen(self, dl):
-        if self.len < 1 and dl < 0: return
-        if self.len > 10 and dl > 0: return
+        if self.len < 1 and dl < 0:
+            return
+        if self.len > 10 and dl > 0:
+            return
         self.len += dl
 
     def link(self, prev, next):
@@ -151,6 +156,9 @@ class Segment:
 
         self.v *= 0.99
 
+    def get_cords(self):
+        return Vector(self.cords.x, self.cords.y)
+
     def __collide(self):
         next_pos = self.cords + self.v
         for tile in tiles_group:
@@ -168,10 +176,14 @@ class Segment:
                 dt = abs(r.top - p1.y)
                 db = abs(r.bottom - p1.y)
                 m = min(dl,dr,dt,db)
-                if   m == dl: p1.x = r.left - 1
-                elif m == dr: p1.x = r.right
-                elif m == dt: p1.y = r.top - 1
-                else:         p1.y = r.bottom
+                if   m == dl:
+                    p1.x = r.left - 1
+                elif m == dr:
+                    p1.x = r.right
+                elif m == dt:
+                    p1.y = r.top - 1
+                else:
+                    p1.y = r.bottom
                 break
 
             if not p1 and p2:
@@ -198,7 +210,8 @@ class Segment:
         self.cords += self.v * 0.9
 
     def draw(self):
-        if self.prev is None: return
+        if self.prev is None:
+            return
         p1 = self.prev.cords
         p2 = self.cords
         pygame.draw.line(screen, (255, 255, 255), (p1.x, p1.y), (p2.x, p2.y), 1)
@@ -234,7 +247,7 @@ class Rope:
     @staticmethod
     def create(p, player):
         points = []
-        x,y = player.rect.left+25,player.rect.top
+        x, y = player.rect.left + player.rect.width // 2, player.rect.top
         pts = 10
         dx = (p[0] - x) / pts
         dy = (p[1] - y) / pts
@@ -243,7 +256,7 @@ class Rope:
             if i == pts - 1:
                 seg = PinnedSegment(x, y)
             else: 
-                seg = Segment(x, y, 10)
+                seg = Segment(x, y, 1)
             segments.append(seg)
             x += dx
             y += dy

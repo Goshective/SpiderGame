@@ -32,21 +32,26 @@ class Player(Standart_Sprite):
 
     def __handle_flying(self, left, right, up, down):
         idle = True
-        seg = self.rope.segments[0]
-        c = seg.cords
-        v = seg.v
-        self.rect.x = c.x - 25
+        seg1, seg2, seg3 = self.rope.segments[0], self.rope.segments[1], self.rope.segments[2]
+        c = seg1.cords
+        v = seg1.v
+        self.rect.x = c.x - self.rect.width // 2
         self.rect.y = c.y
         self.vx = v.x
         self.vy = v.y
         if left:
-            v.x -= MOVE_SPEED / 20
+            v.x -= 0.1
+            # v.y -= 0.1
         elif right:
-            v.x += MOVE_SPEED / 20
+            v.x += 0.1
+            # v.y -= 0.1
         if up:
             self.rope.changelen(-0.1)
         elif down:
             self.rope.changelen(0.1)
+        
+        self.__collide_flying()
+
         return idle
         
     def __handle_running(self, left, right, up, down):
@@ -73,6 +78,67 @@ class Player(Standart_Sprite):
         self.rect.x += self.vx
         self.__collide(self.vx, 0)
         return idle
+
+    def __collide_flying(self):
+        lst = pygame.sprite.spritecollide(self, tiles_group, False)
+        for plat in lst:
+            sl, sr, st, sb = self.rect.left, self.rect.right, self.rect.top, self.rect.bottom
+            pl, pr, pt, pb = plat.rect.left, plat.rect.right, plat.rect.top, plat.rect.bottom
+            point_player = self.rope.segments[0]
+            cords_p0 = point_player.get_cords()
+            x_const = self.rect.width // 2
+            y_const = self.rect.height
+
+            if pl <= sr <= pr and pt <= sb <= pb:  # 1
+                if sr - pl < sb - pt:
+                    sr = pl
+                    point_player.cords.x = pl - x_const
+                else:
+                    sb = pt
+                    point_player.cords.y = pt - y_const
+
+            elif pl <= sl <= pr and pt <= sb <= pb:  # 2
+                if pr - sl < sb - pt:
+                    sl = pr
+                    point_player.cords.x = pr + x_const
+                else:
+                    sb = pt
+                    point_player.cords.y = pt - y_const
+
+            elif pl <= sl <= pr and pt <= st <= pb:  # 3
+                if pr - sl < pb - st:
+                    sl = pr
+                    point_player.cords.x = pr + x_const
+                else:
+                    st = pb
+                    point_player.cords.y = pb
+
+            elif pl <= sr <= pr and pt <= st <= pb:  # 4
+                if sr - pl < pb - st:
+                    sr = pl
+                    point_player.cords.x = pl - x_const
+                else:
+                    st = pb
+                    point_player.cords.y = pb
+
+            elif pt <= st and sb <= pb:
+                if pl <= sl <= pr:
+                    sl = pr  # *5
+                    point_player.cords.x = pr + x_const
+                else:
+                    sr = pl  # *6
+                    point_player.cords.x = pl - x_const
+
+            dx = point_player.cords.x - cords_p0.x
+            dy = point_player.cords.y - cords_p0.y
+            if dx >= 25:
+                point_player.cords.x -= dx // 2
+                self.rect.x -= dx // 2
+                point_player.v.set_null(x=0)
+            if dy >= 25:
+                point_player.cords.y -= dy // 2
+                self.rect.y -= dy // 2
+                point_player.v.set_null(y=0)
 
     def __collide(self, vx, vy):
         lst = pygame.sprite.spritecollide(self, tiles_group, False)
