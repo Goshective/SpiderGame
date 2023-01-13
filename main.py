@@ -7,6 +7,7 @@ from camera import Camera
 from stand_sprite import Standart_Sprite
 from loading_files import load_image, load_level
 from map import generate_map
+from geometry import Point, Line, Vector, get_intersection_point
 
 
 pygame.init()
@@ -63,42 +64,24 @@ def generate_level(level):
     return new_player, x, y
 
 
-class Vector:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
+def check_line(point, player_cords):
+    intersections = []
+    for tile in tiles_group:
+        res = get_intersection_point(Point(*player_cords), Point(*point), tile.rect)
+        if res[2] == Line.Entry or res[2] == Line.EntryExit:
+            intersections.append((tile, res[0], res[1]))
+    if len(intersections) == 0:
+        return None
+    min_dist = Vector(intersections[0][1].x - player_cords[0], intersections[0][1].y - player_cords[1]).dist
+    min_point = intersections[0][1]
+    for tile, p_en, p_ex in intersections:
+        dist = Vector(p_en.x - player_cords[0], p_en.y - player_cords[1]).dist
+        if dist < min_dist:
+            min_dist = dist
+            min_point = p_en
+    min_point.y -= 10
+    return min_point 
 
-    def __add__(self, vect):
-        return Vector(self.x + vect.x, self.y + vect.y)
-
-    def __sub__(self, vect):
-        return Vector(self.x - vect.x, self.y - vect.y)
-
-    def __mul__(self, n):
-        return Vector(self.x * n, self.y * n)
-
-    def __neg__(self):
-        return Vector(-self.x, -self.y)
-
-    def __repr__(self):
-        return "(" + str(self.x) + "," + str(self.y) + ")"
-
-    def set_null(self, x=None, y=None):
-        self.x = self.x if x is None else x
-        self.y = self.y if y is None else y
-
-    def vector_to(self, vect):  # from self to vect
-        return vect - self
-
-    def l_vector_to(self, vect, lenght=1):
-        v = self.vector_to(vect)
-        if v.dist == 0:
-            return Vector(0, 0)
-        return v * (lenght / v.dist)
-
-    @property
-    def dist(self):
-        return (self.x ** 2 + self.y ** 2) ** 0.5
 
 
 class PinnedSegment:
@@ -122,7 +105,8 @@ class PinnedSegment:
 
     def draw(self):
         pygame.draw.circle(screen, (0, 255, 0), (int(self.cords.x), int(self.cords.y)), 2)
-         
+
+  
 class Segment:
     def __init__(self, x, y, l):
         self.cords = Vector(x, y)
@@ -246,11 +230,13 @@ class Rope:
  
     @staticmethod
     def create(p, player):
-        points = []
         x, y = player.rect.left + player.rect.width // 2, player.rect.top
+        r_point = check_line(p, (x, y))
+        if r_point is None:
+            return None
         pts = 10
-        dx = (p[0] - x) / pts
-        dy = (p[1] - y) / pts
+        dx = (r_point.x - x) / pts
+        dy = (r_point.y - y) / pts
         segments = []
         for i in range(pts):
             if i == pts - 1:
@@ -281,7 +267,7 @@ player_image = load_image('pauk1.png')
 
 # level_map = load_level("lim.txt")
 level_map = generate_map(64, 64)
-print(level_map)
+# print("\n".join(level_map))
 
 player, level_x, level_y = generate_level(level_map)
 sizes = level_x + 1, level_y + 1
@@ -316,8 +302,9 @@ while running:
             else:
                 p = pygame.mouse.get_pos()
                 rope = Rope.create(p, player)
-                ropes.append(rope)
-                player.set_rope(rope)
+                if rope is not None:
+                    ropes.append(rope)
+                    player.set_rope(rope)
 
     screen.fill((192, 192, 192))
     player_group.update(left, right, up, down, camera, ropes)
