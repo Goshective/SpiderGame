@@ -1,11 +1,11 @@
 import pygame
 import random as rnd
-from PIL import Image, ImageDraw, ImageFilter
 from our_player import Player
 from constants import *
 from groups import *
 from stand_sprite import Standart_Sprite
 from loading_files import load_image
+from opensimplex import OpenSimplex
 
 pygame.init()
 screen = pygame.display.set_mode(size)
@@ -25,52 +25,53 @@ class Tile(Standart_Sprite):
         self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
 
 
-def generate_level(width=64, height=128):
+def generate_level(width=64, height=64):
     new_player = None
-    img = Image.new("L", (width, height))
-    draw = ImageDraw.Draw(img)
-    area = {}
+    areas = []
+    area_main = set()
+    gen = OpenSimplex(seed=rnd.randint(0, 10000))
 
-    while True:
-        for x in range(width):
-            for y in range(height):
-                draw.point((x, y), rnd.randint(0, 255))
-
-        pix = img.filter(ImageFilter.GaussianBlur(radius=3)).load()
-        areas = []
-
-        for x in range(1, width - 1):
-            for y in range(1, height - 1):
+    for x in range(width-2):
+        for y in range(height-2):
+            noise = gen.noise2(x/5, y/5)
+            if noise >= 0:
                 point = (x, y)
-                if pix[point] >= 127:
-                    continue
-                area = {}
+                area = set()
                 for area in areas:
                     if (x - 1, y) in area or (x, y - 1) in area:
                         area.add(point)
-                        break
                 if point not in area:
                     areas.append({point})
 
-        if len(areas) == 1:
-            while True:
-                start = (rnd.randint(1, width), rnd.randint(1, height))
-                if start in area:
-                    break
-            while True:
-                finish = (rnd.randint(1, width), rnd.randint(1, height))
-                if finish in area and finish != start:
-                    break
+    while True:
+        doubles = False
+        for area in areas:
+            for area_ in areas:
+                if area != area_ and len(area & area_):
+                    area.update(area_)
+                    doubles = True
+            if len(area) > len(area_main):
+                area_main = area
+        if not doubles:
+            break
+
+    while True:
+        start = (rnd.randint(0, width-2), rnd.randint(0, height-2))
+        if start in area_main:
+            break
+    while True:
+        finish = (rnd.randint(0, width-2), rnd.randint(0, height-2))
+        if finish in area_main and finish != start:
             break
 
     for x in range(width):
         for y in range(height):
-            point = (x, y)
+            point = (x-1, y-1)
             if point == start:
                 new_player = Player(x, y, images['player'])
             elif point == finish:
                 Tile('finish', x, y)
-            elif point not in area:
+            elif point not in area_main:
                 Tile('wall', x, y)
 
     return new_player

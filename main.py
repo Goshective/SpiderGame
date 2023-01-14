@@ -261,7 +261,7 @@ up, down, left, right = False, False, False, False
 
 while running:
     if len(all_sprites) == 0:
-        player = generate_level(32, 32)
+        player = generate_level(64, 16)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
