@@ -80,6 +80,10 @@ class Player(Standart_Sprite):
     def __collide_flying(self):
         lst = pygame.sprite.spritecollide(self, tiles_group, False)
         for plat in lst:
+            if plat.tile_type == 'finish':
+                for spr in all_sprites:
+                    spr.kill()
+                break
             sl, sr, st, sb = self.rect.left, self.rect.right, self.rect.top, self.rect.bottom
             pl, pr, pt, pb = plat.rect.left, plat.rect.right, plat.rect.top, plat.rect.bottom
             point_player = self.rope.segments[0]
@@ -144,6 +148,7 @@ class Player(Standart_Sprite):
         def area_intersection(r1, r2):
             r = r1.clip(r2)
             return -(r.width * r.height)
+
 
         # сортируем по площади пересечения. бОльшая площадь более важная и обрабатывается первой
         lst = sorted(lst, key=lambda r: area_intersection(r.rect, self.rect))

@@ -5,10 +5,10 @@ from constants import * # type: ignore
 from groups import * # type: ignore
 from camera import Camera
 from stand_sprite import Standart_Sprite
-from loading_files import load_image, load_level
-from map import generate_map
+from loading_files import load_image
 from geometry import Point, Line, Vector, get_intersection_point
 
+from map import generate_level
 
 pygame.init()
 
@@ -50,20 +50,6 @@ def start_screen():
         clock.tick(FPS)
 
 
-def generate_level(level):
-    new_player, x, y = None, None, None
-    for y in range(len(level)):
-        for x in range(len(level[y])):
-            if level[y][x] == '#':
-                Tile('wall', x, y)
-            elif level[y][x] == '@':
-                new_player = Player(x, y, player_image)
-            """elif level[y][x] == "*":
-                base_rope = Rope(__something__)"""
-    # вернем игрока, а также размер поля в клетках
-    return new_player, x, y
-
-
 def check_line(point, player_cords):
     intersections = []
     for tile in tiles_group:
@@ -81,7 +67,6 @@ def check_line(point, player_cords):
             min_point = p_en
     min_point.y -= 10
     return min_point 
-
 
 
 class PinnedSegment:
@@ -106,7 +91,7 @@ class PinnedSegment:
     def draw(self):
         pygame.draw.circle(screen, (0, 255, 0), (int(self.cords.x), int(self.cords.y)), 2)
 
-  
+
 class Segment:
     def __init__(self, x, y, l):
         self.cords = Vector(x, y)
@@ -201,7 +186,7 @@ class Segment:
         pygame.draw.line(screen, (255, 255, 255), (p1.x, p1.y), (p2.x, p2.y), 1)
         pygame.draw.circle(screen, (128, 128, 128), (int(p2.x), int(p2.y)), 2)
 
-        
+
 class Rope:
     def __init__(self, *segments):
         self.segments = [] 
@@ -249,29 +234,6 @@ class Rope:
         return Rope(*segments)
 
 
-class Tile(Standart_Sprite):
-    def __init__(self, tile_type, pos_x, pos_y):
-        super().__init__(tiles_group, all_sprites)
-        self.tile_type = tile_type
-        self.image = tile_images[tile_type]
-        self.rect = self.image.get_rect().move(
-            tile_width * pos_x, tile_height * pos_y)
-        # return self
-
-
-tile_images = {
-    'wall': load_image('b_box(50)(1).png'),
-    'empty': load_image('grass.png')
-}
-player_image = load_image('pauk1.png')
-
-# level_map = load_level("lim.txt")
-level_map = generate_map(64, 64)
-# print("\n".join(level_map))
-
-player, level_x, level_y = generate_level(level_map)
-sizes = level_x + 1, level_y + 1
-
 camera = Camera()
 
 clock = pygame.time.Clock()
@@ -283,6 +245,9 @@ running = True
 up, down, left, right = False, False, False, False
 
 while running:
+    if len(all_sprites) == 0:
+        player = generate_level(64, 16)
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
