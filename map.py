@@ -10,7 +10,7 @@ from opensimplex import OpenSimplex
 pygame.init()
 screen = pygame.display.set_mode(size)
 images = {
-    'wall': load_image('box.png'),
+    'wall': load_image('b_box(50)(1).png'),
     'empty': load_image('grass.png'),
     'finish': load_image('exit.png'),
     'player': load_image('pauk1.png')
@@ -20,6 +20,10 @@ images = {
 class Tile(Standart_Sprite):
     def __init__(self, tile_type, pos_x, pos_y):
         super().__init__(tiles_group, all_sprites)
+        if tile_type == "finish":
+            self.add(finish_tiles)
+        else:
+            self.add(col_tiles)
         self.tile_type = tile_type
         self.image = images[tile_type]
         self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)

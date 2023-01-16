@@ -52,7 +52,7 @@ def start_screen():
 
 def check_line(point, player_cords):
     intersections = []
-    for tile in tiles_group:
+    for tile in col_tiles:
         res = get_intersection_point(Point(*player_cords), Point(*point), tile.rect)
         if res[2] == Line.Entry or res[2] == Line.EntryExit:
             intersections.append((tile, res[0], res[1]))
@@ -246,7 +246,7 @@ up, down, left, right = False, False, False, False
 
 while running:
     if len(all_sprites) == 0:
-        player = generate_level(64, 16)
+        player = generate_level(25, 64)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -273,6 +273,8 @@ while running:
 
     screen.fill((192, 192, 255))
     player_group.update(left, right, up, down, camera, ropes)
+    if player.check_exit():
+        ropes = []
 
     for r in ropes:
         r.update()
