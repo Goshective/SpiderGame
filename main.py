@@ -199,7 +199,7 @@ class Segment:
         p1 = self.prev.cords
         p2 = self.cords
         pygame.draw.line(screen, (255, 255, 255), (p1.x, p1.y), (p2.x, p2.y), 1)
-        pygame.draw.circle(screen, (255, 0, 0), (int(p2.x), int(p2.y)), 2)
+        pygame.draw.circle(screen, (128, 128, 128), (int(p2.x), int(p2.y)), 2)
 
         
 class Rope:
@@ -260,7 +260,7 @@ class Tile(Standart_Sprite):
 
 
 tile_images = {
-    'wall': load_image('box.png'),
+    'wall': load_image('b_box(50)(1).png'),
     'empty': load_image('grass.png')
 }
 player_image = load_image('pauk1.png')
@@ -306,7 +306,7 @@ while running:
                     ropes.append(rope)
                     player.set_rope(rope)
 
-    screen.fill((192, 192, 192))
+    screen.fill((192, 192, 255))
     player_group.update(left, right, up, down, camera, ropes)
 
     for r in ropes:

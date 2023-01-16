@@ -73,10 +73,8 @@ class Player(Standart_Sprite):
             
         self.on_ground = False
         self.rect.y += self.vy
-        self.__collide(0, self.vy)
-        
         self.rect.x += self.vx
-        self.__collide(self.vx, 0)
+        self.__collide()
         return idle
 
     def __collide_flying(self):
@@ -140,22 +138,51 @@ class Player(Standart_Sprite):
                 self.rect.y -= dy // 2
                 point_player.v.set_null(y=0)
 
-    def __collide(self, vx, vy):
-        lst = pygame.sprite.spritecollide(self, tiles_group, False)
+    def __collide(self):
+        lst = list(pygame.sprite.spritecollide(self, tiles_group, False))
+       
+        def area_intersection(r1, r2):
+            r = r1.clip(r2)
+            return -(r.width * r.height)
+
+        # сортируем по площади пересечения. бОльшая площадь более важная и обрабатывается первой
+        lst = sorted(lst, key=lambda r: area_intersection(r.rect, self.rect))
+
         for plat in lst:
-            if vx > 0:
-                self.rect.right = plat.rect.left 
+            sl, sr, st, sb = self.rect.left, self.rect.right, self.rect.top, self.rect.bottom
+            pl, pr, pt, pb = plat.rect.left, plat.rect.right, plat.rect.top, plat.rect.bottom
+ 
+            if pl <= sr <= pr and pt <= sb <= pb:  # 1
+                if sr - pl < sb - pt:
+                    self.rect.right = pl - 1
+                    self.vx = 0
+                else:
+                    self.rect.bottom = pt + 1
+                    self.vy = 0
+                    self.on_ground = True
 
-            elif vx < 0:
-                self.rect.left = plat.rect.right
+            elif pl <= sl <= pr and pt <= sb <= pb:  # 2
+                if pr - sl < sb - pt:
+                    self.rect.left = pr + 1
+                    self.vx = 0
+                else:
+                    self.rect.bottom = pt + 1
+                    self.vy = 0
+                    self.on_ground = True    
 
-            if vy > 0:
-                self.rect.bottom = plat.rect.top
-                self.on_ground = True
-                self.vy = 0
-
-            elif vy < 0:
-                self.rect.top = plat.rect.bottom
-                self.vy = 0
+            elif pl <= sl <= pr and pt <= st <= pb:  # 3
+                if pr - sl < pb - st:
+                    self.vx = 0
+                    self.rect.left = pr + 1
+                else:
+                    self.vy = 0
+                    self.rect.top = pb + 1
+ 
+            elif pl <= sr <= pr and pt <= st <= pb:  # 4
+                if sr - pl < pb - st:
+                    self.rect.right = pl - 1
+                else:
+                    self.rect.top = pb + 1
+                self.vx = 0
         """if len(lst) == 0 and vx == 0:
             self.on_ground = False"""

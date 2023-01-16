@@ -3,7 +3,8 @@ import os
 
 FPS = 60
 
-size = WIDTH, HEIGHT = 1000, 700
+QUALITIES = {"High": (1920, 1080), "HD": (1280, 720), "960H": (960, 576), "D1": (720, 576), "Low": (360, 240)}
+size = WIDTH, HEIGHT = QUALITIES["HD"]
 tile_width = tile_height = 50
 
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
