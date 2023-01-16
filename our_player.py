@@ -74,16 +74,13 @@ class Player(Standart_Sprite):
         self.on_ground = False
         self.rect.y += self.vy
         self.rect.x += self.vx
+
         self.__collide()
         return idle
 
     def __collide_flying(self):
-        lst = pygame.sprite.spritecollide(self, tiles_group, False)
+        lst = pygame.sprite.spritecollide(self, col_tiles, False)
         for plat in lst:
-            if plat.tile_type == 'finish':
-                for spr in all_sprites:
-                    spr.kill()
-                break
             sl, sr, st, sb = self.rect.left, self.rect.right, self.rect.top, self.rect.bottom
             pl, pr, pt, pb = plat.rect.left, plat.rect.right, plat.rect.top, plat.rect.bottom
             point_player = self.rope.segments[0]
@@ -143,7 +140,7 @@ class Player(Standart_Sprite):
                 point_player.v.set_null(y=0)
 
     def __collide(self):
-        lst = list(pygame.sprite.spritecollide(self, tiles_group, False))
+        lst = list(pygame.sprite.spritecollide(self, col_tiles, False))
        
         def area_intersection(r1, r2):
             r = r1.clip(r2)
@@ -191,3 +188,12 @@ class Player(Standart_Sprite):
                 self.vx = 0
         """if len(lst) == 0 and vx == 0:
             self.on_ground = False"""
+
+    def check_exit(self):
+        for plat in finish_tiles:
+            if self.rect.colliderect(plat.rect):
+                for spr in all_sprites:
+                    spr.kill()
+                self.rope = None
+                return True
+        return False
