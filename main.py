@@ -5,7 +5,9 @@ from constants import * # type: ignore
 from groups import * # type: ignore
 from camera import Camera
 from stand_sprite import Standart_Sprite
-from loading_files import load_image, load_level
+from loading_files import load_image
+from geometry import Point, Line, Vector, get_intersection_point
+
 from map import generate_level
 
 pygame.init()
@@ -48,42 +50,23 @@ def start_screen():
         clock.tick(FPS)
 
 
-class Vector:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-
-    def __add__(self, vect):
-        return Vector(self.x + vect.x, self.y + vect.y)
-
-    def __sub__(self, vect):
-        return Vector(self.x - vect.x, self.y - vect.y)
-
-    def __mul__(self, n):
-        return Vector(self.x * n, self.y * n)
-
-    def __neg__(self):
-        return Vector(-self.x, -self.y)
-
-    def __repr__(self):
-        return "(" + str(self.x) + "," + str(self.y) + ")"
-
-    def set_null(self, x=None, y=None):
-        self.x = self.x if x is None else x
-        self.y = self.y if y is None else y
-
-    def vector_to(self, vect):  # from self to vect
-        return vect - self
-
-    def l_vector_to(self, vect, lenght=1):
-        v = self.vector_to(vect)
-        if v.dist == 0:
-            return Vector(0, 0)
-        return v * (lenght / v.dist)
-
-    @property
-    def dist(self):
-        return (self.x ** 2 + self.y ** 2) ** 0.5
+def check_line(point, player_cords):
+    intersections = []
+    for tile in tiles_group:
+        res = get_intersection_point(Point(*player_cords), Point(*point), tile.rect)
+        if res[2] == Line.Entry or res[2] == Line.EntryExit:
+            intersections.append((tile, res[0], res[1]))
+    if len(intersections) == 0:
+        return None
+    min_dist = Vector(intersections[0][1].x - player_cords[0], intersections[0][1].y - player_cords[1]).dist
+    min_point = intersections[0][1]
+    for tile, p_en, p_ex in intersections:
+        dist = Vector(p_en.x - player_cords[0], p_en.y - player_cords[1]).dist
+        if dist < min_dist:
+            min_dist = dist
+            min_point = p_en
+    min_point.y -= 10
+    return min_point 
 
 
 class PinnedSegment:
@@ -201,7 +184,7 @@ class Segment:
         p1 = self.prev.cords
         p2 = self.cords
         pygame.draw.line(screen, (255, 255, 255), (p1.x, p1.y), (p2.x, p2.y), 1)
-        pygame.draw.circle(screen, (255, 0, 0), (int(p2.x), int(p2.y)), 2)
+        pygame.draw.circle(screen, (128, 128, 128), (int(p2.x), int(p2.y)), 2)
 
 
 class Rope:
@@ -232,11 +215,13 @@ class Rope:
  
     @staticmethod
     def create(p, player):
-        points = []
         x, y = player.rect.left + player.rect.width // 2, player.rect.top
+        r_point = check_line(p, (x, y))
+        if r_point is None:
+            return None
         pts = 10
-        dx = (p[0] - x) / pts
-        dy = (p[1] - y) / pts
+        dx = (r_point.x - x) / pts
+        dy = (r_point.y - y) / pts
         segments = []
         for i in range(pts):
             if i == pts - 1:
@@ -282,10 +267,11 @@ while running:
             else:
                 p = pygame.mouse.get_pos()
                 rope = Rope.create(p, player)
-                ropes.append(rope)
-                player.set_rope(rope)
+                if rope is not None:
+                    ropes.append(rope)
+                    player.set_rope(rope)
 
-    screen.fill((192, 192, 192))
+    screen.fill((192, 192, 255))
     player_group.update(left, right, up, down, camera, ropes)
 
     for r in ropes:
