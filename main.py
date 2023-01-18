@@ -1,14 +1,15 @@
 import pygame
 import sys
 import time
+import sqlite3
+
 from our_player import Player
 from constants import * # type: ignore
 from groups import * # type: ignore
 from camera import Camera
-from stand_sprite import Standart_Sprite
+
 from loading_files import load_image
 from geometry import Point, Line, Vector, get_intersection_point
-
 from map import generate_level
 
 pygame.init()
@@ -31,7 +32,7 @@ def start_screen():
     size = 60
     font = pygame.font.Font(None, size)
     text_coord = 50
-    name = ""
+    player_name = "goshective"
     sizes = [300, 1250, 300]
     for i in range(len(intro_text)):
         line = intro_text[i]
@@ -49,7 +50,7 @@ def start_screen():
                 terminate()
             elif event.type == pygame.KEYDOWN or \
                     event.type == pygame.MOUSEBUTTONDOWN:
-                return
+                return player_name
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -263,8 +264,8 @@ camera = Camera()
 
 clock = pygame.time.Clock()
 
+player_name = start_screen()
 ropes = [None, None]
-start_screen()
 
 running = True
 up, down, left, right = False, False, False, False
@@ -281,6 +282,14 @@ while running:
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
+            request = """INSERT INTO score  (login, score) VALUES (?, ?)"""
+            request2 = """SELECT MAX(score), login FROM score GROUP BY login ORDER BY MAX(score) DESC LIMIT 3"""
+            con = sqlite3.connect(DATA_BASE_PATH)
+            con.cursor().execute(request, (player_name, score))
+            con.commit()
+            res = con.cursor().execute(request2).fetchall()
+            print(res)
+            con.close()
             running = False
         if event.type in (pygame.KEYDOWN, pygame.KEYUP):
             if event.key == pygame.K_w:
@@ -310,6 +319,10 @@ while running:
     player_group.update(left, right, up, down, camera, ropes)
     if player.check_exit():
         ropes = []
+        remain_time = pygame.time.get_ticks() - time_start
+        score += round(((dist_to * DIST_COEFF) ** 1.5) * (TIME_COEFF / remain_time) ** 0.5)
+        print(score, "{:.3f}".format(dist_to), round(((dist_to * DIST_COEFF) ** 1.5) * (TIME_COEFF / remain_time) ** 0.5), "{:.3f}".format(TIME_COEFF / remain_time))
+
 
     for r in ropes:
         if r is not None:
@@ -335,3 +348,12 @@ while running:
     clock.tick(FPS)
 
 pygame.quit()
+
+
+"""CREATE TABLE score (
+    id        INTEGER      PRIMARY KEY,
+    login     VARCHAR (50) NOT NULL,
+    timestamp DATETIME     NOT NULL
+                           DEFAULT (datetime('now') ),
+    score     INTEGER      NOT NULL
+);"""
