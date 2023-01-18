@@ -16,6 +16,7 @@ class Camera:
     def contact(self, player, ropes):
         self.update(player)
         for r in ropes:
-            self.apply(r)
+            if r is not None:
+                self.apply(r)
         for sprite in all_sprites:
             self.apply(sprite)
