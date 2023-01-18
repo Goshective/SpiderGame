@@ -1,5 +1,6 @@
 import pygame
 import sys
+import time
 from our_player import Player
 from constants import * # type: ignore
 from groups import * # type: ignore
@@ -14,6 +15,7 @@ pygame.init()
 
 screen = pygame.display.set_mode(size)
 
+debugging_points = []
 
 def terminate():
     pygame.quit()
@@ -104,8 +106,10 @@ class PinnedSegment:
         self.cords += Vector(dx, dy)
 
     def draw(self):
-        pygame.draw.circle(screen, (0, 255, 0), (int(self.cords.x), int(self.cords.y)), 2)
-
+        p1 = self.prev.cords
+        p2 = self.cords
+        pygame.draw.line(screen, (255, 255, 255), (int(p1.x), int(p1.y)), (int(p2.x), int(p2.y)), 1)
+        pygame.draw.circle(screen, (0, 255, 0), (int(p2.x), int(p2.y)), 2)
 
 class FakeRect: 
     def __init__(self, rect): self.rect = rect
@@ -162,7 +166,7 @@ class Segment:
                 continue
 
             if p1 and p2: # both points inside rect, move to closest side
-                self.v = Vector(0, 0)
+                self.v = Vector(0,0)
                 p1 = self.cords
                 dl = abs(r.left - p1.x)
                 dr = abs(r.right - p1.x)
@@ -302,9 +306,6 @@ while running:
     player_group.update(left, right, up, down, camera, ropes)
     if player.check_exit():
         ropes = []
-        remain_time = pygame.time.get_ticks() - time_start
-        score += round(((dist_to * DIST_COEFF) ** 1.5) * (TIME_COEFF / remain_time) ** 0.5)
-        print(score, "{:.3f}".format(dist_to), round(((dist_to * DIST_COEFF) ** 1.5) * (TIME_COEFF / remain_time) ** 0.5), "{:.3f}".format(TIME_COEFF / remain_time))
 
     for r in ropes:
         r.update()
@@ -314,8 +315,16 @@ while running:
 
     for r in ropes:
         r.draw()
+        
+    if len(debugging_points) > 0:
+        for pt in debugging_points:
+            pygame.draw.circle(screen, (255, 0, 0), pt, 2)
+        pygame.draw.circle(screen, (255, 0, 255), debugging_points[-1], 3)
 
     pygame.display.flip()
+    if len(debugging_points) > 0:
+        debugging_points = []
+        time.sleep(100)
 
     clock.tick(FPS)
 
