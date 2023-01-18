@@ -10,6 +10,7 @@ from camera import Camera
 
 from loading_files import load_image
 from geometry import Point, Line, Vector, get_intersection_point
+import settings as game_settings
 from map import generate_level
 
 pygame.init()
@@ -24,34 +25,99 @@ def terminate():
 
 
 def start_screen():
-    intro_text = ["SPIDER GAME",
-                  "Created and Developed by Goshective and Liza Eleshenkova",
-                  "ВВЕДИТЕ ИМЯ:"]
-    fon = pygame.transform.scale(load_image('gradient.jpg'), (WIDTH, HEIGHT))
-    screen.blit(fon, (0, 0))
-    size = 60
-    font = pygame.font.Font(None, size)
-    text_coord = 50
-    player_name = "goshective"
-    sizes = [300, 1250, 300]
-    for i in range(len(intro_text)):
-        line = intro_text[i]
-        string_rendered = font.render(line, 1, pygame.Color('white'))
-        intro_rect = string_rendered.get_rect()
-        text_coord += 50
-        intro_rect.top = text_coord
-        intro_rect.x = (WIDTH - sizes[i]) // 2
-        text_coord += intro_rect.height
-        screen.blit(string_rendered, intro_rect)
+    game_settings.stage = 'menu'
+
+
+def options_screen():
+    game_settings.stage = 'options'
+
+
+def game_screen():
+    global debugging_points
+    game_settings.level = 0
+    player_name = "goshective" # start_screen()
+    ropes = [None, None]
+    score = 0
+    up, down, left, right = False, False, False, False
+    for spr in all_sprites:
+        spr.kill()
 
     while True:
+        if len(all_sprites) == 0:
+            player = generate_level(game_settings)
+            start_cords = player.rect.x, player.rect.y
+            for finish in finish_tiles:
+                fin_cords = finish.rect.x, finish.rect.y
+                dist_to = Vector(fin_cords[0] - start_cords[0], fin_cords[1] - start_cords[1]).dist
+            time_start = pygame.time.get_ticks()
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                terminate()
-            elif event.type == pygame.KEYDOWN or \
-                    event.type == pygame.MOUSEBUTTONDOWN:
-                return player_name
+                request = """INSERT INTO score  (login, score) VALUES (?, ?)"""
+                request2 = """SELECT MAX(score), login FROM score GROUP BY login ORDER BY MAX(score) DESC LIMIT 3"""
+                con = sqlite3.connect(DATA_BASE_PATH)
+                con.cursor().execute(request, (player_name, score))
+                con.commit()
+                res = con.cursor().execute(request2).fetchall()
+                print(res)
+                con.close()
+                return
+            if event.type in (pygame.KEYDOWN, pygame.KEYUP):
+                if event.key == pygame.K_w:
+                    up = event.type == pygame.KEYDOWN
+                elif event.key == pygame.K_s:
+                    down = event.type == pygame.KEYDOWN
+                elif event.key == pygame.K_a:
+                    left = event.type == pygame.KEYDOWN
+                elif event.key == pygame.K_d:
+                    right = event.type == pygame.KEYDOWN
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if player.rope is not None:
+                    ropes[0] = None
+                    player.set_rope(None)
+                else:
+                    p = pygame.mouse.get_pos()
+                    rope = Rope.create(p, player)
+                    if rope is not None:
+                        ropes[0] = rope
+                        player.set_rope(rope)
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
+                if ropes[1] is None:
+                    ropes[1] = Rope.create(pygame.mouse.get_pos(), player, ln=5)
+                else:
+                    ropes[1] = None
+
+        screen.fill((192, 192, 255))
+        player_group.update(left, right, up, down, camera, ropes)
+        if player.check_exit():
+            ropes = [None, None]
+            remain_time = pygame.time.get_ticks() - time_start
+            score += round(((dist_to * DIST_COEFF) ** 1.5) * (TIME_COEFF / remain_time) ** 0.5)
+            print(score, "{:.3f}".format(dist_to), round(((dist_to * DIST_COEFF) ** 1.5) * (TIME_COEFF / remain_time) ** 0.5), "{:.3f}".format(TIME_COEFF / remain_time))
+
+        for r in ropes:
+            if r is not None:
+                r.update()
+
+        tiles_group.draw(screen)
+        player_group.draw(screen)
+
+        for r in ropes:
+            if r is not None:
+                r.draw()
+            
+        if len(debugging_points) > 0:
+            for pt in debugging_points:
+                pygame.draw.circle(screen, (255, 0, 0), pt, 2)
+            pygame.draw.circle(screen, (255, 0, 255), debugging_points[-1], 3)
+
         pygame.display.flip()
+        if len(debugging_points) > 0:
+            debugging_points = []
+            time.sleep(100)
+
+        pygame.display.flip()
+
         clock.tick(FPS)
 
 
@@ -88,9 +154,10 @@ def check_line(point, player_cords):
 
 
 class PinnedSegment:
-    def __init__(self, x, y, src=None):
+    def __init__(self, x, y, player_width, src=None):
         self.cords = Vector(x, y)
         self.src = src
+        self.player_width = player_width
 
     def changelen(self, dl):
         pass
@@ -101,7 +168,7 @@ class PinnedSegment:
         
     def update(self):
         if self.src is not None:
-            self.cords = Vector(self.src.rect.left + player.rect.width // 2, self.src.rect.top)
+            self.cords = Vector(self.src.rect.left + self.player_width // 2, self.src.rect.top)
         
     def move(self, dx, dy):
         self.cords += Vector(dx, dy)
@@ -256,96 +323,82 @@ class Rope:
             segments.append(Segment(x, y, ln))
             x += dx
             y += dy
-        segments.append(PinnedSegment(r_point.x, r_point.y))
+        segments.append(PinnedSegment(r_point.x, r_point.y, player.rect.width))
         return Rope(*segments)
+
+
+class Button:
+    width = 200
+    height = 75
+
+    def __init__(self, text, pos_top, action):
+        font = pygame.font.Font(None, 40)
+        self.text = font.render(text, True, (0, 0, 0))
+        self.button_rect = pygame.Rect(((WIDTH - self.width) // 2, pos_top, self.width, self.height))
+        self.text_rect = self.text.get_rect(center=self.button_rect.center)
+        self.inactive_color = (255, 0, 0)
+        self.active_color = (0, 255, 0)
+        self.action = action
+        self.hover = False
+
+    def check(self, event):
+        if event.type == pygame.MOUSEMOTION:
+            self.hover = self.button_rect.collidepoint(event.pos)
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if self.hover and self.action:
+                self.action()
+
+    def draw(self, screen):
+        if self.hover:
+            color = self.active_color
+        else:
+            color = self.inactive_color
+
+        pygame.draw.rect(screen, color, self.button_rect)
+        screen.blit(self.text, self.text_rect)
 
 
 camera = Camera()
 
 clock = pygame.time.Clock()
 
-player_name = start_screen()
-ropes = [None, None]
+fon = pygame.transform.scale(load_image('fon.jpg'), (WIDTH, HEIGHT))
+
+buttons = {
+    'game': Button('НОВАЯ ИГРА', 100, game_screen),
+    'options': Button('НАСТРОЙКИ', 200, options_screen),
+    'exit': Button('ВЫХОД', 300, terminate),
+    'return': Button('НАЗАД', 400, start_screen)
+}
 
 running = True
-up, down, left, right = False, False, False, False
-score = 0
 
 while running:
-    if len(all_sprites) == 0:
-        player = generate_level(*LEVEL_SIZES)
-        start_cords = player.rect.x, player.rect.y
-        for finish in finish_tiles:
-            fin_cords = finish.rect.x, finish.rect.y
-            dist_to = Vector(fin_cords[0] - start_cords[0], fin_cords[1] - start_cords[1]).dist
-        time_start = pygame.time.get_ticks()
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            request = """INSERT INTO score  (login, score) VALUES (?, ?)"""
-            request2 = """SELECT MAX(score), login FROM score GROUP BY login ORDER BY MAX(score) DESC LIMIT 3"""
-            con = sqlite3.connect(DATA_BASE_PATH)
-            con.cursor().execute(request, (player_name, score))
-            con.commit()
-            res = con.cursor().execute(request2).fetchall()
-            print(res)
-            con.close()
             running = False
-        if event.type in (pygame.KEYDOWN, pygame.KEYUP):
-            if event.key == pygame.K_w:
-                up = event.type == pygame.KEYDOWN
-            elif event.key == pygame.K_s:
-                down = event.type == pygame.KEYDOWN
-            elif event.key == pygame.K_a:
-                left = event.type == pygame.KEYDOWN
-            elif event.key == pygame.K_d:
-                right = event.type == pygame.KEYDOWN
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if player.rope is not None:
-                ropes[0] = None
-                player.set_rope(None)
-            else:
-                p = pygame.mouse.get_pos()
-                rope = Rope.create(p, player)
-                if rope is not None:
-                    ropes[0] = rope
-                    player.set_rope(rope)
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
-            if ropes[1] is None:
-                ropes[1] = Rope.create(pygame.mouse.get_pos(), player, ln=5)
-            else:
-                ropes[1] = None
-    screen.fill((192, 192, 255))
-    player_group.update(left, right, up, down, camera, ropes)
-    if player.check_exit():
-        ropes = [None, None]
-        remain_time = pygame.time.get_ticks() - time_start
-        score += round(((dist_to * DIST_COEFF) ** 1.5) * (TIME_COEFF / remain_time) ** 0.5)
-        print(score, "{:.3f}".format(dist_to), round(((dist_to * DIST_COEFF) ** 1.5) * (TIME_COEFF / remain_time) ** 0.5), "{:.3f}".format(TIME_COEFF / remain_time))
 
+        if game_settings.stage == 'menu':
+            buttons['game'].check(event)
+            buttons['options'].check(event)
+            buttons['exit'].check(event)
+        elif game_settings.stage == 'game':
+            pass
+        elif game_settings.stage == 'options':
+            buttons['return'].check(event)
 
-    for r in ropes:
-        if r is not None:
-            r.update()
-    
-    tiles_group.draw(screen)
-    player_group.draw(screen)
+    screen.blit(fon, (0, 0))
 
-    for r in ropes:
-        if r is not None:
-            r.draw()
-        
-    if len(debugging_points) > 0:
-        for pt in debugging_points:
-            pygame.draw.circle(screen, (255, 0, 0), pt, 2)
-        pygame.draw.circle(screen, (255, 0, 255), debugging_points[-1], 3)
+    if game_settings.stage == 'menu':
+        buttons['game'].draw(screen)
+        buttons['options'].draw(screen)
+        buttons['exit'].draw(screen)
+    elif game_settings.stage == 'game':
+        pass
+    elif game_settings.stage == 'options':
+        buttons['return'].draw(screen)
 
-    pygame.display.flip()
-    if len(debugging_points) > 0:
-        debugging_points = []
-        time.sleep(100)
-
-    clock.tick(FPS)
+    pygame.display.update()
 
 pygame.quit()
 
