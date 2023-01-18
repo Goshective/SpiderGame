@@ -9,6 +9,7 @@ size = WIDTH, HEIGHT = QUALITIES["HD"]
 tile_width = tile_height = 50
 
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
+DATA_BASE_PATH = ROOT_PATH + "\\players_database.db"
 
 GRAVITY = 0.35
 JMP_POWER = 10
