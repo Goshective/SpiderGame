@@ -7,7 +7,7 @@ from camera import Camera
 from stand_sprite import Standart_Sprite
 from loading_files import load_image
 from geometry import Point, Line, Vector, get_intersection_point
-
+import settings as game_settings
 from map import generate_level
 
 pygame.init()
@@ -21,32 +21,63 @@ def terminate():
 
 
 def start_screen():
-    intro_text = ["ЗАСТАВКА", "",
-                  "Правила игры",
-                  "Если в правилах несколько строк,",
-                  "приходится выводить их построчно"]
+    game_settings.stage = 'menu'
 
-    fon = pygame.transform.scale(load_image('fon.jpg'), (WIDTH, HEIGHT))
-    screen.blit(fon, (0, 0))
-    font = pygame.font.Font(None, 30)
-    text_coord = 50
-    for line in intro_text:
-        string_rendered = font.render(line, 1, pygame.Color('white'))
-        intro_rect = string_rendered.get_rect()
-        text_coord += 10
-        intro_rect.top = text_coord
-        intro_rect.x = 10
-        text_coord += intro_rect.height
-        screen.blit(string_rendered, intro_rect)
+
+def options_screen():
+    game_settings.stage = 'options'
+
+
+def game_screen():
+    game_settings.level = 0
+    ropes = []
+    up, down, left, right = False, False, False, False
+    for spr in all_sprites:
+        spr.kill()
 
     while True:
+        if len(all_sprites) == 0:
+            player = generate_level(game_settings)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                terminate()
-            elif event.type == pygame.KEYDOWN or \
-                    event.type == pygame.MOUSEBUTTONDOWN:
                 return
+            if event.type in (pygame.KEYDOWN, pygame.KEYUP):
+                if event.key == pygame.K_w:
+                    up = event.type == pygame.KEYDOWN
+                elif event.key == pygame.K_s:
+                    down = event.type == pygame.KEYDOWN
+                elif event.key == pygame.K_a:
+                    left = event.type == pygame.KEYDOWN
+                elif event.key == pygame.K_d:
+                    right = event.type == pygame.KEYDOWN
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if len(ropes) > 0:
+                    ropes = []
+                    player.set_rope(None)
+                else:
+                    p = pygame.mouse.get_pos()
+                    rope = Rope.create(p, player)
+                    if rope is not None:
+                        ropes.append(rope)
+                        player.set_rope(rope)
+
+        screen.fill((192, 192, 255))
+        player_group.update(left, right, up, down, camera, ropes)
+        if player.check_exit():
+            ropes = []
+
+        for r in ropes:
+            r.update()
+
+        tiles_group.draw(screen)
+        player_group.draw(screen)
+
+        for r in ropes:
+            r.draw()
+
         pygame.display.flip()
+
         clock.tick(FPS)
 
 
@@ -234,59 +265,77 @@ class Rope:
         return Rope(*segments)
 
 
+class Button:
+    width = 200
+    height = 75
+
+    def __init__(self, text, pos_top, action):
+        font = pygame.font.Font(None, 40)
+        self.text = font.render(text, True, (0, 0, 0))
+        self.button_rect = pygame.Rect(((WIDTH - self.width) // 2, pos_top, self.width, self.height))
+        self.text_rect = self.text.get_rect(center=self.button_rect.center)
+        self.inactive_color = (255, 0, 0)
+        self.active_color = (0, 255, 0)
+        self.action = action
+        self.hover = False
+
+    def check(self, event):
+        if event.type == pygame.MOUSEMOTION:
+            self.hover = self.button_rect.collidepoint(event.pos)
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if self.hover and self.action:
+                self.action()
+
+    def draw(self, screen):
+        if self.hover:
+            color = self.active_color
+        else:
+            color = self.inactive_color
+
+        pygame.draw.rect(screen, color, self.button_rect)
+        screen.blit(self.text, self.text_rect)
+
+
 camera = Camera()
 
 clock = pygame.time.Clock()
 
-ropes = []
-start_screen()
+fon = pygame.transform.scale(load_image('fon.jpg'), (WIDTH, HEIGHT))
+
+buttons = {
+    'game': Button('НОВАЯ ИГРА', 100, game_screen),
+    'options': Button('НАСТРОЙКИ', 200, options_screen),
+    'exit': Button('ВЫХОД', 300, terminate),
+    'return': Button('НАЗАД', 400, start_screen)
+}
 
 running = True
-up, down, left, right = False, False, False, False
 
 while running:
-    if len(all_sprites) == 0:
-        player = generate_level(25, 64)
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        if event.type in (pygame.KEYDOWN, pygame.KEYUP):
-            if event.key == pygame.K_w:
-                up = event.type == pygame.KEYDOWN
-            elif event.key == pygame.K_s:
-                down = event.type == pygame.KEYDOWN
-            elif event.key == pygame.K_a:
-                left = event.type == pygame.KEYDOWN
-            elif event.key == pygame.K_d:
-                right = event.type == pygame.KEYDOWN
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if len(ropes) > 0:
-                ropes = []
-                player.set_rope(None)
-            else:
-                p = pygame.mouse.get_pos()
-                rope = Rope.create(p, player)
-                if rope is not None:
-                    ropes.append(rope)
-                    player.set_rope(rope)
 
-    screen.fill((192, 192, 255))
-    player_group.update(left, right, up, down, camera, ropes)
-    if player.check_exit():
-        ropes = []
+        if game_settings.stage == 'menu':
+            buttons['game'].check(event)
+            buttons['options'].check(event)
+            buttons['exit'].check(event)
+        elif game_settings.stage == 'game':
+            pass
+        elif game_settings.stage == 'options':
+            buttons['return'].check(event)
 
-    for r in ropes:
-        r.update()
-    
-    tiles_group.draw(screen)
-    player_group.draw(screen)
+    screen.blit(fon, (0, 0))
 
-    for r in ropes:
-        r.draw()
+    if game_settings.stage == 'menu':
+        buttons['game'].draw(screen)
+        buttons['options'].draw(screen)
+        buttons['exit'].draw(screen)
+    elif game_settings.stage == 'game':
+        pass
+    elif game_settings.stage == 'options':
+        buttons['return'].draw(screen)
 
-    pygame.display.flip()
-
-    clock.tick(FPS)
+    pygame.display.update()
 
 pygame.quit()

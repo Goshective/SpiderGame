@@ -29,7 +29,10 @@ class Tile(Standart_Sprite):
         self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
 
 
-def generate_level(width=64, height=64):
+def generate_level(game_settings):
+    game_settings.level += 1
+    width = game_settings.width
+    height = game_settings.height
     new_player = None
     areas = []
     area_main = set()
