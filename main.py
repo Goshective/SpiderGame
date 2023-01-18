@@ -21,21 +21,23 @@ def terminate():
 
 
 def start_screen():
-    intro_text = ["ЗАСТАВКА", "",
-                  "Правила игры",
-                  "Если в правилах несколько строк,",
-                  "приходится выводить их построчно"]
-
-    fon = pygame.transform.scale(load_image('fon.jpg'), (WIDTH, HEIGHT))
+    intro_text = ["SPIDER GAME",
+                  "Created and Developed by Goshective and Liza Eleshenkova",
+                  "ВВЕДИТЕ ИМЯ:"]
+    fon = pygame.transform.scale(load_image('gradient.jpg'), (WIDTH, HEIGHT))
     screen.blit(fon, (0, 0))
-    font = pygame.font.Font(None, 30)
+    size = 60
+    font = pygame.font.Font(None, size)
     text_coord = 50
-    for line in intro_text:
+    name = ""
+    sizes = [300, 1250, 300]
+    for i in range(len(intro_text)):
+        line = intro_text[i]
         string_rendered = font.render(line, 1, pygame.Color('white'))
         intro_rect = string_rendered.get_rect()
-        text_coord += 10
+        text_coord += 50
         intro_rect.top = text_coord
-        intro_rect.x = 10
+        intro_rect.x = (WIDTH - sizes[i]) // 2
         text_coord += intro_rect.height
         screen.blit(string_rendered, intro_rect)
 
@@ -51,21 +53,34 @@ def start_screen():
 
 
 def check_line(point, player_cords):
+    global debugging_points
     intersections = []
     for tile in col_tiles:
-        res = get_intersection_point(Point(*player_cords), Point(*point), tile.rect)
-        if res[2] == Line.Entry or res[2] == Line.EntryExit:
-            intersections.append((tile, res[0], res[1]))
+        entry,exit,t = get_intersection_point(Point(*player_cords), Point(*point), tile.rect)
+        if t == Line.Entry or t == Line.EntryExit:
+            intersections.append((tile, entry, exit))
     if len(intersections) == 0:
         return None
     min_dist = Vector(intersections[0][1].x - player_cords[0], intersections[0][1].y - player_cords[1]).dist
     min_point = intersections[0][1]
     for tile, p_en, p_ex in intersections:
+        # if p_en is not None:
+        #    debugging_points.append((int(p_en.x), int(p_en.y)))
+        #    print("entry", p_en.x, p_en.y)
+        # if p_ex is not None:
+        #    debugging_points.append((int(p_ex.x), int(p_ex.y)))
+        #    print("exit", p_ex.x,p_ex.y)
         dist = Vector(p_en.x - player_cords[0], p_en.y - player_cords[1]).dist
         if dist < min_dist:
             min_dist = dist
             min_point = p_en
-    min_point.y -= 10
+        if p_ex is not None:
+            dist = Vector(p_ex.x - player_cords[0], p_ex.y - player_cords[1]).dist
+            if dist < min_dist:
+                min_dist = dist
+                min_point = p_ex
+    # min_point.y -= 10
+    # debugging_points.append((int(min_point.x), int(min_point.y)))
     return min_point 
 
 
@@ -90,6 +105,10 @@ class PinnedSegment:
 
     def draw(self):
         pygame.draw.circle(screen, (0, 255, 0), (int(self.cords.x), int(self.cords.y)), 2)
+
+
+class FakeRect: 
+    def __init__(self, rect): self.rect = rect
 
 
 class Segment:
@@ -127,10 +146,15 @@ class Segment:
 
     def get_cords(self):
         return Vector(self.cords.x, self.cords.y)
-
+        
     def __collide(self):
         next_pos = self.cords + self.v
-        for tile in tiles_group:
+        r1 = pygame.Rect(int(self.cords.x), int(self.cords.y), 1, 1)
+        r2 = pygame.Rect(int(next_pos.x), int(next_pos.y), 1, 1)
+        r = r1.union(r2)
+        lst = pygame.sprite.spritecollide(FakeRect(r), tiles_group, False)
+
+        for tile in lst:
             r = tile.rect
             p1 = r.collidepoint(self.cords.x, self.cords.y)
             p2 = r.collidepoint(next_pos.x, next_pos.y)
@@ -138,7 +162,7 @@ class Segment:
                 continue
 
             if p1 and p2: # both points inside rect, move to closest side
-                self.v = Vector(0,0)
+                self.v = Vector(0, 0)
                 p1 = self.cords
                 dl = abs(r.left - p1.x)
                 dr = abs(r.right - p1.x)
@@ -224,13 +248,10 @@ class Rope:
         dy = (r_point.y - y) / pts
         segments = []
         for i in range(pts):
-            if i == pts - 1:
-                seg = PinnedSegment(x, y)
-            else: 
-                seg = Segment(x, y, 1)
-            segments.append(seg)
+            segments.append(Segment(x, y, 1))
             x += dx
             y += dy
+        segments.append(PinnedSegment(r_point.x, r_point.y))
         return Rope(*segments)
 
 
@@ -243,10 +264,16 @@ start_screen()
 
 running = True
 up, down, left, right = False, False, False, False
+score = 0
 
 while running:
     if len(all_sprites) == 0:
-        player = generate_level(25, 64)
+        player = generate_level(*LEVEL_SIZES)
+        start_cords = player.rect.x, player.rect.y
+        for finish in finish_tiles:
+            fin_cords = finish.rect.x, finish.rect.y
+            dist_to = Vector(fin_cords[0] - start_cords[0], fin_cords[1] - start_cords[1]).dist
+        time_start = pygame.time.get_ticks()
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -275,6 +302,9 @@ while running:
     player_group.update(left, right, up, down, camera, ropes)
     if player.check_exit():
         ropes = []
+        remain_time = pygame.time.get_ticks() - time_start
+        score += round(((dist_to * DIST_COEFF) ** 1.5) * (TIME_COEFF / remain_time) ** 0.5)
+        print(score, "{:.3f}".format(dist_to), round(((dist_to * DIST_COEFF) ** 1.5) * (TIME_COEFF / remain_time) ** 0.5), "{:.3f}".format(TIME_COEFF / remain_time))
 
     for r in ropes:
         r.update()
