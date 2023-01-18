@@ -59,7 +59,7 @@ def check_line(point, player_cords):
     global debugging_points
     intersections = []
     for tile in col_tiles:
-        entry,exit,t = get_intersection_point(Point(*player_cords), Point(*point), tile.rect)
+        entry, exit, t = get_intersection_point(Point(*player_cords), Point(*point), tile.rect)
         if t == Line.Entry or t == Line.EntryExit:
             intersections.append((tile, entry, exit))
     if len(intersections) == 0:
@@ -125,9 +125,9 @@ class Segment:
         self.max_len = l * 10
         
     def changelen(self, dl):
-        if self.len < 1 and dl < 0:
+        if self.len < self.min_len and dl < 0:
             return
-        if self.len > 10 and dl > 0:
+        if self.len > self.max_len and dl > 0:
             return
         self.len += dl
 
@@ -243,7 +243,7 @@ class Rope:
             s.draw()
  
     @staticmethod
-    def create(p, player):
+    def create(p, player, ln=1):
         x, y = player.rect.left + player.rect.width // 2, player.rect.top
         r_point = check_line(p, (x, y))
         if r_point is None:
@@ -253,7 +253,7 @@ class Rope:
         dy = (r_point.y - y) / pts
         segments = []
         for i in range(pts):
-            segments.append(Segment(x, y, 1))
+            segments.append(Segment(x, y, ln))
             x += dx
             y += dy
         segments.append(PinnedSegment(r_point.x, r_point.y))
@@ -264,8 +264,8 @@ camera = Camera()
 
 clock = pygame.time.Clock()
 
-ropes = []
 player_name = start_screen()
+ropes = [None, None]
 
 running = True
 up, down, left, right = False, False, False, False
@@ -301,16 +301,20 @@ while running:
             elif event.key == pygame.K_d:
                 right = event.type == pygame.KEYDOWN
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if len(ropes) > 0:
-                ropes = []
+            if player.rope is not None:
+                ropes[0] = None
                 player.set_rope(None)
             else:
                 p = pygame.mouse.get_pos()
                 rope = Rope.create(p, player)
                 if rope is not None:
-                    ropes.append(rope)
+                    ropes[0] = rope
                     player.set_rope(rope)
-
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
+            if ropes[1] is None:
+                ropes[1] = Rope.create(pygame.mouse.get_pos(), player, ln=5)
+            else:
+                ropes[1] = None
     screen.fill((192, 192, 255))
     player_group.update(left, right, up, down, camera, ropes)
     if player.check_exit():
@@ -321,13 +325,15 @@ while running:
 
 
     for r in ropes:
-        r.update()
+        if r is not None:
+            r.update()
     
     tiles_group.draw(screen)
     player_group.draw(screen)
 
     for r in ropes:
-        r.draw()
+        if r is not None:
+            r.draw()
         
     if len(debugging_points) > 0:
         for pt in debugging_points:
