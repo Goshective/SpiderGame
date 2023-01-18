@@ -306,6 +306,9 @@ while running:
     player_group.update(left, right, up, down, camera, ropes)
     if player.check_exit():
         ropes = []
+        remain_time = pygame.time.get_ticks() - time_start
+        score += round(((dist_to * DIST_COEFF) ** 1.5) * (TIME_COEFF / remain_time) ** 0.5)
+        print(score, "{:.3f}".format(dist_to), round(((dist_to * DIST_COEFF) ** 1.5) * (TIME_COEFF / remain_time) ** 0.5), "{:.3f}".format(TIME_COEFF / remain_time))
 
     for r in ropes:
         r.update()
