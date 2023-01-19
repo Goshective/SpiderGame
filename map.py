@@ -62,14 +62,8 @@ def generate_level(game_settings):
         if not doubles:
             break
 
-    while True:
-        start = (rnd.randint(0, width-2), rnd.randint(0, height-2))
-        if start in area_main:
-            break
-    while True:
-        finish = (rnd.randint(0, width-2), rnd.randint(0, height-2))
-        if finish in area_main and finish != start:
-            break
+    start = rnd.choice(list(area_main))
+    finish = rnd.choice(list(area_main))
 
     for x in range(width):
         for y in range(height):
