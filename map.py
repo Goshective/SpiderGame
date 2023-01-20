@@ -29,7 +29,10 @@ class Tile(Standart_Sprite):
         self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
 
 
-def generate_level(width=64, height=64):
+def generate_level(game_settings):
+    game_settings.level += 1
+    width = game_settings.width
+    height = game_settings.height
     new_player = None
     areas = []
     area_main = set()
@@ -59,14 +62,8 @@ def generate_level(width=64, height=64):
         if not doubles:
             break
 
-    while True:
-        start = (rnd.randint(0, width-2), rnd.randint(0, height-2))
-        if start in area_main:
-            break
-    while True:
-        finish = (rnd.randint(0, width-2), rnd.randint(0, height-2))
-        if finish in area_main and finish != start:
-            break
+    start = rnd.choice(list(area_main))
+    finish = rnd.choice(list(area_main))
 
     for x in range(width):
         for y in range(height):
