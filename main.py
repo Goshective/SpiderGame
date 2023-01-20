@@ -101,6 +101,8 @@ def game_screen():
 
         tiles_group.draw(screen)
         player_group.draw(screen)
+        for enemy in enemies_group:
+            enemy.draw(screen)
 
         for r in ropes:
             if r is not None:
@@ -422,7 +424,7 @@ camera = Camera()
 
 clock = pygame.time.Clock()
 
-fon = pygame.transform.scale(load_image('fon.jpg'), (WIDTH, HEIGHT))
+fon = pygame.transform.scale(load_image('gradient.jpg'), (WIDTH, HEIGHT))
 
 buttons = {
     'game': Button('НОВАЯ ИГРА', 300, game_screen),

@@ -16,6 +16,7 @@ JMP_POWER = 10
 MOVE_SPEED = 7
 DIST_COEFF = 0.06
 TIME_COEFF = 10000
+SPAWN_COEFF = 200
 
 ANIMATION_LEFT= ["pauk1.png", "pauk2.png", "pauk3.png"]
 ANIMATION_RIGHT = ["pauk3.png", "pauk2.png", "pauk1.png"]
