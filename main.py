@@ -111,7 +111,6 @@ def game_screen():
                 pygame.draw.circle(screen, (255, 0, 0), pt, 2)
             pygame.draw.circle(screen, (255, 0, 255), debugging_points[-1], 3)
 
-        pygame.display.flip()
         if len(debugging_points) > 0:
             debugging_points = []
             time.sleep(100)
