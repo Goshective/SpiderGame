@@ -22,10 +22,10 @@ class Tile(Standart_Sprite):
     def __init__(self, tile_type, pos_x, pos_y):
         super().__init__(tiles_group, all_sprites)
         if tile_type == "finish":
-            self.add(finish_tiles)
+            super().__init__(tiles_group, all_sprites, finish_tiles)
             self.image = images[tile_type]
         else:
-            self.add(col_tiles)
+            super().__init__(tiles_group, all_sprites, col_tiles)
             self.image = pygame.transform.rotate(images[tile_type], rnd.choice([0, 90, 270, 180]))
         self.tile_type = tile_type
         self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)

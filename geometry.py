@@ -44,6 +44,9 @@ class Vector:
             return Vector(0, 0)
         return v * (lenght / v.dist)
 
+    def copy(self):
+        return Vector(self.x, self.y)
+
     @property
     def dist(self):
         return (self.x ** 2 + self.y ** 2) ** 0.5

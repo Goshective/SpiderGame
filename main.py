@@ -98,6 +98,9 @@ def game_screen():
         for r in ropes:
             if r is not None:
                 r.update()
+            
+        for enemy in enemies_group:
+            enemy.update()
 
         tiles_group.draw(screen)
         player_group.draw(screen)
