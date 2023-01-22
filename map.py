@@ -25,7 +25,7 @@ class Tile(Standart_Sprite):
         else:
             self.add(col_tiles)
         self.tile_type = tile_type
-        self.image = images[tile_type]
+        self.image = pygame.transform.smoothscale(images[tile_type], (tile_width, tile_height))
         self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
 
 

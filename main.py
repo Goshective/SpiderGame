@@ -15,7 +15,7 @@ from map import generate_level
 
 pygame.init()
 
-screen = pygame.display.set_mode(size)
+screen = pygame.display.set_mode(game_settings.resolution)
 
 debugging_points = []
 
@@ -115,22 +115,38 @@ def game_screen():
             debugging_points = []
             time.sleep(100)
 
-        font = pygame.font.Font(None, 40)
-        text = font.render(f'Уровень {game_settings.level}', True, pygame.Color('white'))
-        text_rect = text.get_rect(center=(WIDTH // 2, 25))
-        screen.blit(text, text_rect)
+        text = Label(f'Уровень {game_settings.level}', 0.25, color=pygame.Color('white'))
+        text.draw(screen)
+        text = Label(f'Очки: {score}', 0.25, color=pygame.Color('white'))
+        text.rect.right = screen.get_width() - 25
+        text.draw(screen)
 
         pygame.display.flip()
 
         clock.tick(FPS)
 
 
-def level_width_change():
-    game_settings.width = scroll_bars['level_width'].value
+def level_width_change(value):
+    game_settings.width = value
 
 
-def level_height_change():
-    game_settings.height = scroll_bars['level_height'].value
+def level_height_change(value):
+    game_settings.height = value
+
+
+def resolution_change(value):
+    global screen
+    if value != game_settings.resolution:
+        game_settings.resolution = value
+        screen = pygame.display.set_mode(game_settings.resolution)
+        for element in buttons.values():
+            element.resize()
+        for element in scroll_bars.values():
+            element.resize()
+        for element in labels.values():
+            element.resize()
+        for element in list_boxes.values():
+            element.resize()
 
 
 def check_line(point, player_cords):
@@ -342,20 +358,19 @@ class Rope:
 class Button:
     width = 200
     height = 75
+    inactive_color = pygame.Color('red')
+    active_color = pygame.Color('green')
 
-    def __init__(self, text, pos_top, action):
-        font = pygame.font.Font(None, 40)
-        self.text = font.render(text, True, (0, 0, 0))
-        self.button_rect = pygame.Rect(((WIDTH - self.width) // 2, pos_top, self.width, self.height))
-        self.text_rect = self.text.get_rect(center=self.button_rect.center)
-        self.inactive_color = (255, 0, 0)
-        self.active_color = (0, 255, 0)
+    def __init__(self, text, index, action):
+        self.index = index
+        self.button = Box(index, self.width, self.height)
+        self.label = Label(text, index)
         self.action = action
         self.hover = False
 
     def check(self, event):
         if event.type == pygame.MOUSEMOTION:
-            self.hover = self.button_rect.collidepoint(event.pos)
+            self.hover = self.button.rect.collidepoint(event.pos)
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if self.hover and self.action:
                 self.action()
@@ -365,27 +380,30 @@ class Button:
             color = self.active_color
         else:
             color = self.inactive_color
+        self.button.draw(screen, color)
+        self.label.draw(screen)
 
-        pygame.draw.rect(screen, color, self.button_rect)
-        screen.blit(self.text, self.text_rect)
+    def resize(self):
+        self.button.resize()
+        self.label.resize()
 
 
 class ScrollBar:
     width = 600
     height = 50
+    inactive_color = pygame.Color('red')
+    active_color = pygame.Color('green')
 
-    def __init__(self, text, min, max, value, pos_top, action):
+    def __init__(self, text, min, max, value, index, action):
+        self.index = index
         self.min = min
         self.max = max
         self.value = value
         self.scale = self.width / (max - min)
-        pos_left = (WIDTH - self.width) // 2
-        self.track_rect = pygame.Rect((pos_left, pos_top, self.width, self.height))
-        self.thumb_rect = pygame.Rect((pos_left + (value - min) * self.scale, pos_top - 5, 30, self.height + 10))
-        font = pygame.font.Font(None, 40)
-        self.text = font.render(text, True, pygame.Color('black'))
-        self.text_rect = self.text.get_rect(centery=self.thumb_rect.centery)
-        self.text_rect.left = 50
+        self.track = Box(index, self.width, self.height)
+        self.thumb = Box(index, 30, self.height + 10)
+        self.label = Label(text, index)
+        self.resize()
         self.action = action
         self.hover = False
         self.scrolling = False
@@ -393,46 +411,159 @@ class ScrollBar:
 
     def check(self, event):
         if event.type == pygame.MOUSEMOTION:
-            self.hover = self.track_rect.collidepoint(event.pos)
+            self.hover = self.track.rect.collidepoint(event.pos)
             if self.scrolling and pygame.mouse.get_pressed()[0]:
                 if self.hover:
-                    self.thumb_rect.left = event.pos[0] - self.offset
-                    self.value = self.min + int((self.thumb_rect.centerx - self.track_rect.left) / self.scale)
+                    self.thumb.rect.left = event.pos[0] - self.offset
+                    self.value = self.min + int((self.thumb.rect.centerx - self.track.rect.left) / self.scale)
                     if self.action:
-                        self.action()
+                        self.action(self.value)
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            self.scrolling = self.thumb_rect.collidepoint(event.pos)
-            self.offset = event.pos[0] - self.thumb_rect.left
+            self.scrolling = self.thumb.rect.collidepoint(event.pos)
+            self.offset = event.pos[0] - self.thumb.rect.left
         elif event.type == pygame.MOUSEBUTTONUP:
-            self.scrolling = self.thumb_rect.collidepoint(event.pos)
+            self.scrolling = self.thumb.rect.collidepoint(event.pos)
 
     def draw(self, screen):
-        pygame.draw.rect(screen, pygame.Color('blue'), self.track_rect)
         if self.hover:
-            pygame.draw.rect(screen, pygame.Color('green'), self.thumb_rect)
+            color = self.active_color
         else:
-            pygame.draw.rect(screen, pygame.Color('red'), self.thumb_rect)
+            color = self.inactive_color
+        self.track.draw(screen, pygame.Color('blue'))
+        self.thumb.draw(screen, color)
+        text = Label(f'{self.value}', self.index, color=pygame.Color('white'))
+        text.draw(screen)
+        self.label.draw(screen)
 
-        text = pygame.font.Font(None, 40).render(str(self.value), True, pygame.Color('white'))
-        screen.blit(text, text.get_rect(center=self.track_rect.center))
-        screen.blit(self.text, self.text_rect)
+    def resize(self):
+        self.track.resize()
+        self.thumb.resize()
+        self.thumb.rect.left = self.track.rect.left + (self.value - self.min) * self.scale
+        self.label.resize()
+        self.label.rect.left = 50
+
+
+class Label:
+    def __init__(self, text, index, font_size=40, color=pygame.Color('black')):
+        font = pygame.font.Font(None, font_size)
+        self.index = index
+        self.text = font.render(text, True, color)
+        self.rect = self.text.get_rect()
+        self.resize()
+
+    def draw(self, screen):
+        screen.blit(self.text, self.rect)
+
+    def resize(self):
+        self.rect.center = (screen.get_width() // 2, self.index * screen.get_height() // 10)
+
+
+class Box:
+    def __init__(self, index, width, height):
+        self.index = index
+        self.rect = pygame.Rect((0, 0, width, height))
+        self.resize()
+
+    def draw(self, screen, color):
+        pygame.draw.rect(screen, color, self.rect)
+
+    def resize(self):
+        self.rect.center = (screen.get_width() // 2, self.index * screen.get_height() // 10)
+
+
+class ListBox:
+    width = 200
+    height = 50
+    inactive_color = pygame.Color('red')
+    active_color = pygame.Color('green')
+
+    def __init__(self, text, index, choice_list, value, action):
+        self.index = index
+        self.value = value
+        self.field = Box(index, self.width, self.height)
+        self.list = []
+        for i, choice in enumerate(choice_list):
+            button = Box(index, self.width, self.height)
+            label = Label(f'{choice[0]}x{choice[1]}', index)
+            self.list.append({'value': choice, 'button': button, 'label': label})
+        self.label = Label(text, index)
+        self.resize()
+        self.choosing = False
+        self.action = action
+        self.hover = False
+
+    def check(self, event):
+        if event.type == pygame.MOUSEMOTION:
+            self.hover = self.field.rect.collidepoint(event.pos)
+            if self.choosing:
+                self.choosing = self.hover
+                for element in self.list:
+                    if element['button'].rect.collidepoint(event.pos):
+                        self.choosing = True
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if self.hover:
+                self.choosing = True
+            elif self.choosing and self.action:
+                self.choosing = False
+                for element in self.list:
+                    if element['button'].rect.collidepoint(event.pos):
+                        self.value = element['value']
+                        self.action(self.value)
+
+    def draw(self, screen):
+        if self.hover:
+            color = self.active_color
+        else:
+            color = self.inactive_color
+        self.field.draw(screen, color)
+        text = Label(f'{self.value[0]}x{self.value[1]}', self.index)
+        text.draw(screen)
+        self.label.draw(screen)
+        if self.choosing:
+            for element in self.list:
+                if element['button'].rect.collidepoint(event.pos):
+                    color = self.active_color
+                else:
+                    color = self.inactive_color
+                element['button'].draw(screen, color)
+                element['label'].draw(screen)
+
+    def resize(self):
+        self.field.resize()
+        self.label.resize()
+        self.label.rect.left = 50
+        for i, element in enumerate(self.list):
+            element['button'].resize()
+            element['button'].rect.top = self.field.rect.top + (i + 1) * self.height
+            element['label'].resize()
+            element['label'].rect.top = self.field.rect.top + (i + 1) * self.height
 
 
 camera = Camera()
 
 clock = pygame.time.Clock()
 
-fon = pygame.transform.scale(load_image('fon.jpg'), (WIDTH, HEIGHT))
+fon = pygame.transform.scale(load_image('fon.jpg'), screen.get_size())
 
 buttons = {
-    'game': Button('НОВАЯ ИГРА', 300, game_screen),
-    'options': Button('НАСТРОЙКИ', 400, options_screen),
-    'exit': Button('ВЫХОД', 600, terminate),
-    'return': Button('НАЗАД', 600, start_screen)
+    'game': Button('НОВАЯ ИГРА', 4, game_screen),
+    'options': Button('НАСТРОЙКИ', 6, options_screen),
+    'exit': Button('ВЫХОД', 9, terminate),
+    'return': Button('НАЗАД', 9, start_screen)
 }
+
 scroll_bars = {
-    'level_width': ScrollBar('Ширина уровня:', 20, 50, game_settings.width, 200, level_width_change),
-    'level_height': ScrollBar('Высота уровня:', 50, 100, game_settings.height, 300, level_height_change)
+    'level_width': ScrollBar('Ширина уровня:', 20, 50, game_settings.width, 5, level_width_change),
+    'level_height': ScrollBar('Высота уровня:', 50, 100, game_settings.height, 7, level_height_change)
+}
+
+labels = {
+    'options': Label('НАСТРОЙКИ:', 1, 100),
+    'game_name': Label('SPIDER GAME', 2, 200, pygame.Color('purple'))
+}
+
+list_boxes = {
+    'resolution': ListBox('Разрешение:', 3, QUALITIES.values(), game_settings.resolution, resolution_change)
 }
 
 
@@ -453,14 +584,15 @@ while running:
             scroll_bars['level_width'].check(event)
             scroll_bars['level_height'].check(event)
             buttons['return'].check(event)
+            list_boxes['resolution'].check(event)
+
+    if fon.get_size() != screen.get_size():
+        fon = pygame.transform.scale(load_image('fon.jpg'), screen.get_size())
 
     screen.blit(fon, (0, 0))
 
     if game_settings.stage == 'menu':
-        font = pygame.font.Font(None, 200)
-        text = font.render('Spider', True, pygame.Color('purple'))
-        text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 4))
-        screen.blit(text, text_rect)
+        labels['game_name'].draw(screen)
         buttons['game'].draw(screen)
         buttons['options'].draw(screen)
         buttons['exit'].draw(screen)
@@ -470,6 +602,7 @@ while running:
         scroll_bars['level_width'].draw(screen)
         scroll_bars['level_height'].draw(screen)
         buttons['return'].draw(screen)
+        list_boxes['resolution'].draw(screen)
 
     pygame.display.update()
 
