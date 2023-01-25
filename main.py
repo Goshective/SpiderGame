@@ -3,7 +3,6 @@ import sys
 import time
 import sqlite3
 
-from our_player import Player
 from constants import * # type: ignore
 from groups import * # type: ignore
 from camera import Camera
@@ -32,6 +31,10 @@ def options_screen():
     game_settings.stage = 'options'
 
 
+def end_screen():
+    game_settings.stage = 'end_of_round'
+
+
 def game_screen():
     global debugging_points
     game_settings.level = 0
@@ -39,6 +42,7 @@ def game_screen():
     ropes = [None, None]
     score = 0
     up, down, left, right = False, False, False, False
+    game_end_murder = False
     for spr in all_sprites:
         spr.kill()
 
@@ -52,7 +56,7 @@ def game_screen():
             time_start = pygame.time.get_ticks()
 
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+            if event.type == pygame.QUIT or game_end_murder:
                 request = """INSERT INTO score  (login, score) VALUES (?, ?)"""
                 request2 = """SELECT MAX(score), login FROM score GROUP BY login ORDER BY MAX(score) DESC LIMIT 3"""
                 con = sqlite3.connect(DATA_BASE_PATH)
@@ -60,8 +64,9 @@ def game_screen():
                 con.commit()
                 res = con.cursor().execute(request2).fetchall()
                 print(res)
+                end_screen()
                 con.close()
-                return
+                return game_end_murder
             if event.type in (pygame.KEYDOWN, pygame.KEYUP):
                 if event.key == pygame.K_w:
                     up = event.type == pygame.KEYDOWN
@@ -101,6 +106,8 @@ def game_screen():
             
         for enemy in enemies_group:
             enemy.update()
+            if enemy.murder:
+                game_end_murder = True
 
         tiles_group.draw(screen)
         player_group.draw(screen)
@@ -416,7 +423,7 @@ class ScrollBar:
         if self.hover:
             pygame.draw.rect(screen, pygame.Color('green'), self.thumb_rect)
         else:
-            pygame.draw.rect(screen, pygame.Color('red'), self.thumb_rect)
+            pygame.draw.rect(screen, pygame.Color('dark grey'), self.thumb_rect)
 
         text = pygame.font.Font(None, 40).render(str(self.value), True, pygame.Color('white'))
         screen.blit(text, text.get_rect(center=self.track_rect.center))
@@ -433,7 +440,8 @@ buttons = {
     'game': Button('НОВАЯ ИГРА', 300, game_screen),
     'options': Button('НАСТРОЙКИ', 400, options_screen),
     'exit': Button('ВЫХОД', 600, terminate),
-    'return': Button('НАЗАД', 600, start_screen)
+    'return': Button('НАЗАД', 600, start_screen),
+    'continue': Button('ПРОДОЛЖИТЬ', 400, start_screen)
 }
 scroll_bars = {
     'level_width': ScrollBar('Ширина уровня:', 20, 50, game_settings.width, 200, level_width_change),
@@ -458,6 +466,8 @@ while running:
             scroll_bars['level_width'].check(event)
             scroll_bars['level_height'].check(event)
             buttons['return'].check(event)
+        elif game_settings.stage == 'end_of_round':
+            buttons['continue'].check(event)
 
     screen.blit(fon, (0, 0))
 
@@ -475,6 +485,9 @@ while running:
         scroll_bars['level_width'].draw(screen)
         scroll_bars['level_height'].draw(screen)
         buttons['return'].draw(screen)
+    elif game_settings.stage == 'end_of_round':
+        #draw_result
+        buttons['continue'].draw(screen)
 
     pygame.display.update()
 
