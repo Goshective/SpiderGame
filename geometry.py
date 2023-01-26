@@ -55,31 +55,6 @@ class Vector:
         return (self.x ** 2 + self.y ** 2) ** 0.5
 
 
-def get_side(circle, tile):
-    """tl = Vector(circle.cords.x + ENEMY_RADIUS - pl, circle.cords.y).dist
-    tr = Vector(circle.cords.x - ENEMY_RADIUS - pr, circle.cords.y).dist
-    tt = Vector(circle.cords.x, circle.cords.y + ENEMY_RADIUS - pt).dist
-    tb = Vector(circle.cords.x, circle.cords.y - ENEMY_RADIUS - pb).dist
-    t_min = min(tl, tr, tt, tb)
-    if t_min == tl:
-        return "left"
-    elif t_min == tr:
-        return "right"
-    elif t_min == tb:
-        return "bottom"
-    else:
-        return "top" """
-    r = tile.clip(circle)
-    if r.height < r.width:
-        if circle.x < tile.x:
-            return "left"
-        return "right"
-    if circle.y < tile.y:
-        return "top"
-    return "bottom"
-
-
-
 def get_intersection_point(p1, p2, rect):
     if is_contain(p1, rect) and is_contain(p2, rect):
         # Can't set null to Point that's why I am returning just empty object

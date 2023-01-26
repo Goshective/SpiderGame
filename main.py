@@ -31,8 +31,17 @@ def options_screen():
     game_settings.stage = 'options'
 
 
-def end_screen():
+def end_screen(res, score):
     game_settings.stage = 'end_of_round'
+    game_settings.best_scores = res
+    game_settings.last_score = score
+
+
+def key_pressing_change(key):
+    if key == "backspace" and len(game_settings.player_name) > 0:
+        game_settings.player_name = game_settings.player_name[:-1]
+    elif key.isalnum() or key in ("-=,./;'"):
+        game_settings.player_name = game_settings.player_name + key
 
 
 def game_screen():
@@ -64,7 +73,7 @@ def game_screen():
                 con.commit()
                 res = con.cursor().execute(request2).fetchall()
                 print(res)
-                end_screen()
+                end_screen(res, score)
                 con.close()
                 return game_end_murder
             if event.type in (pygame.KEYDOWN, pygame.KEYUP):
@@ -203,11 +212,11 @@ class PinnedSegment:
         pygame.draw.line(screen, (255, 255, 255), (int(p1.x), int(p1.y)), (int(p2.x), int(p2.y)), 1)
         pygame.draw.circle(screen, (0, 255, 0), (int(p2.x), int(p2.y)), 2)
 
-class FakeRect: 
-    def __init__(self, rect): self.rect = rect
-
 
 class Segment:
+    class FakeRect: 
+        def __init__(self, rect): self.rect = rect
+
     def __init__(self, x, y, l):
         self.cords = Vector(x, y)
         self.v = Vector(0, 0)
@@ -248,7 +257,7 @@ class Segment:
         r1 = pygame.Rect(int(self.cords.x), int(self.cords.y), 1, 1)
         r2 = pygame.Rect(int(next_pos.x), int(next_pos.y), 1, 1)
         r = r1.union(r2)
-        lst = pygame.sprite.spritecollide(FakeRect(r), tiles_group, False)
+        lst = pygame.sprite.spritecollide(Segment.FakeRect(r), tiles_group, False)
 
         for tile in lst:
             r = tile.rect
@@ -352,13 +361,11 @@ class Rope:
 
 
 class Button:
-    width = 200
-    height = 75
 
-    def __init__(self, text, pos_top, action):
+    def __init__(self, text, pos_top, action, x=0, width=200, height=75):
         font = pygame.font.Font(None, 40)
         self.text = font.render(text, True, (0, 0, 0))
-        self.button_rect = pygame.Rect(((WIDTH - self.width) // 2, pos_top, self.width, self.height))
+        self.button_rect = pygame.Rect(((WIDTH - width) // 2 + x, pos_top, width, height))
         self.text_rect = self.text.get_rect(center=self.button_rect.center)
         self.inactive_color = (255, 0, 0)
         self.active_color = (0, 255, 0)
@@ -441,7 +448,7 @@ buttons = {
     'options': Button('НАСТРОЙКИ', 400, options_screen),
     'exit': Button('ВЫХОД', 600, terminate),
     'return': Button('НАЗАД', 600, start_screen),
-    'continue': Button('ПРОДОЛЖИТЬ', 400, start_screen)
+    'continue': Button('В ГЛАВНОЕ МЕНЮ', 400, start_screen, width=300)
 }
 scroll_bars = {
     'level_width': ScrollBar('Ширина уровня:', 20, 50, game_settings.width, 200, level_width_change),
@@ -453,40 +460,73 @@ running = True
 
 while running:
     for event in pygame.event.get():
+        key_pressed = None
         if event.type == pygame.QUIT:
             running = False
 
+        if event.type == pygame.KEYDOWN:
+            key_pressed = pygame.key.name(event.key)
+
         if game_settings.stage == 'menu':
+            if key_pressed is not None:
+                key_pressing_change(key_pressed)
             buttons['game'].check(event)
             buttons['options'].check(event)
             buttons['exit'].check(event)
+
         elif game_settings.stage == 'game':
             pass
+
         elif game_settings.stage == 'options':
             scroll_bars['level_width'].check(event)
             scroll_bars['level_height'].check(event)
             buttons['return'].check(event)
+
         elif game_settings.stage == 'end_of_round':
             buttons['continue'].check(event)
 
     screen.blit(fon, (0, 0))
 
     if game_settings.stage == 'menu':
-        font = pygame.font.Font(None, 200)
-        text = font.render('Spider', True, pygame.Color('purple'))
-        text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 4))
-        screen.blit(text, text_rect)
+        fonts = [pygame.font.Font(None, 200), pygame.font.Font(None, 30), pygame.font.Font(None, 30)]
+        colors = [pygame.Color('purple'), pygame.Color('white'), pygame.Color('white')]
+        lines = ['Spider', 'Никнейм игрока:', game_settings.player_name]
+        text_cords = [(WIDTH // 2, HEIGHT // 4), (85, HEIGHT // 2 - 20), (len(game_settings.player_name) * 6, HEIGHT // 2)]
+        for i in range(len(lines)):
+            text = fonts[i].render(lines[i], True, colors[i])
+            text_rect = text.get_rect(center=text_cords[i])
+            screen.blit(text, text_rect)
         buttons['game'].draw(screen)
         buttons['options'].draw(screen)
         buttons['exit'].draw(screen)
+    
     elif game_settings.stage == 'game':
         pass
+    
     elif game_settings.stage == 'options':
         scroll_bars['level_width'].draw(screen)
         scroll_bars['level_height'].draw(screen)
         buttons['return'].draw(screen)
+    
     elif game_settings.stage == 'end_of_round':
-        #draw_result
+        intro_text = [f'Ваш счёт: {game_settings.last_score} ' +
+                     f'({game_settings.player_name if game_settings.player_name != "" else "Noname"})', 'Лучшие попытки:'] + \
+                     [f'{name if name != "" else "Noname"} набрал счёт {sc}' for sc, name in game_settings.best_scores]
+        fon = pygame.transform.scale(load_image('gradient.jpg'), (WIDTH, HEIGHT))
+        screen.blit(fon, (0, 0))
+        size = 60
+        font = pygame.font.Font(None, size)
+        text_coords_y = [50, 50, 110, 170, 230]
+        text_coords_x = [-WIDTH + 100, 50, 50, 50, 50]
+        for i in range(len(intro_text)):
+            line = str(intro_text[i])
+            string_rendered = font.render(line, 1, pygame.Color('white'))
+            intro_rect = string_rendered.get_rect()
+            text_coord = text_coords_y[i]
+            intro_rect.top = text_coord
+            intro_rect.x = (WIDTH + text_coords_x[i]) // 2
+            #text_coord += intro_rect.height
+            screen.blit(string_rendered, intro_rect)
         buttons['continue'].draw(screen)
 
     pygame.display.update()
