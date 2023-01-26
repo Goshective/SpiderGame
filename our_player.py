@@ -9,6 +9,7 @@ class Player(Standart_Sprite):
     def __init__(self, pos_x, pos_y, player_image):
         super().__init__(player_group, all_sprites)
         self.image = player_image
+        self.type = "player"
         
         self.rect = self.image.get_rect().move(
             tile_width * pos_x + 10, tile_height * pos_y + 50)

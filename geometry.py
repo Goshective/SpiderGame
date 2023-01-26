@@ -1,3 +1,6 @@
+from constants import *
+
+
 class Point:
     def __init__(self, x, y):
         self.x = x
@@ -44,9 +47,13 @@ class Vector:
             return Vector(0, 0)
         return v * (lenght / v.dist)
 
+    def copy(self):
+        return Vector(self.x, self.y)
+
     @property
     def dist(self):
         return (self.x ** 2 + self.y ** 2) ** 0.5
+
 
 def get_intersection_point(p1, p2, rect):
     if is_contain(p1, rect) and is_contain(p2, rect):
