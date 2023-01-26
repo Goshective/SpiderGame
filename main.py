@@ -48,7 +48,7 @@ def key_pressing_change(key):
 def game_screen():
     global debugging_points
     game_settings.level = 0
-    player_name = "goshective" # start_screen()
+    player_name = game_settings.player_name
     ropes = [None, None]
     score = 0
     up, down, left, right = False, False, False, False
